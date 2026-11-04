@@ -895,7 +895,7 @@
       prev = fcVals[i];
     }
     $('fcBody').innerHTML = html;
-    $('fcCount').textContent = fmtDateShort(fcDates[0]) + ' — ' + fmtDateShort(fcDates[fcDates.length - 1]) + ' · ' + fcDates.length + ' раб. дн.';
+    $('fcCount').textContent = fmtDateShort(fcDates[0]) + ' — ' + fmtDateShort(fcDates[fcDates.length - 1]) + ' (' + fcDates.length + ' раб. дн.)';
   }
 
   /* ---------- карточка тренда ---------- */

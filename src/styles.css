@@ -261,6 +261,10 @@ td.up{color:var(--mint)}
 td.dn{color:var(--red)}
 tr:last-child td{border-bottom:none}
 /* прокрутка таблицы прогноза: все дни горизонта, шапка липнет */
+/* заголовок панели прогноза: название на первой строке, диапазон — на второй */
+.panel h2.fc-head{flex-direction:column;align-items:flex-start;gap:4px}
+.fc-sub{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:none;color:var(--text-2)}
+
 .fc-scroll{max-height:340px;overflow-y:auto;margin:0 -4px;padding:0 4px}
 .fc-scroll thead th{position:sticky;top:0;background:var(--panel);z-index:1}
 
@@ -470,7 +474,7 @@ tr:last-child td{border-bottom:none}
 .info-btn{
   position:relative;
   display:inline-grid;place-items:center;width:16px;height:16px;padding:0;
-  background:transparent;border:1px solid var(--border-strong);border-radius:50%;
+  background:transparent;border:1px solid var(--border-strong);border-radius:2px;
   color:var(--text-3);font-size:9.5px;font-weight:700;font-family:var(--mono);
   line-height:1;cursor:pointer;transition:all .15s ease;flex:none;
 }
