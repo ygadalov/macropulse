@@ -467,6 +467,14 @@ tr:last-child td{border-bottom:none}
 }
 
 /* ===== локальная база (локальная версия) ===== */
+.info-btn{
+  display:inline-grid;place-items:center;width:16px;height:16px;padding:0;
+  background:transparent;border:1px solid var(--border-strong);border-radius:50%;
+  color:var(--text-3);font-size:9.5px;font-weight:700;font-family:var(--mono);
+  line-height:1;cursor:pointer;transition:all .15s ease;flex:none;
+}
+.info-btn:hover,.info-btn.on{color:var(--cyan);border-color:var(--cyan)}
+.db-note[hidden]{display:none}
 .db-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
 .db-info{font-size:11px;color:var(--text-3);letter-spacing:.02em}
 .db-badge{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;

@@ -1152,6 +1152,21 @@
   });
   var dbSaveBtn = $('dbSave');
   if (dbSaveBtn) dbSaveBtn.addEventListener('click', saveDbFile);
+  /* пояснение «Локальной базы» — свёрнуто в (i), состояние запоминается */
+  (function () {
+    var btn = $('dbNoteBtn'), note = $('dbNote');
+    if (!btn || !note) return;
+    function show(on, save) {
+      note.hidden = !on;
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+      if (save) { try { localStorage.setItem('mp:dbnote', on ? '1' : '0'); } catch (e) { /* noop */ } }
+    }
+    var open0 = false;
+    try { open0 = localStorage.getItem('mp:dbnote') === '1'; } catch (e) { /* noop */ }
+    show(open0, false);
+    btn.addEventListener('click', function () { show(note.hidden, true); });
+  })();
   /* возврат на вкладку — проверить свежесть, если автообновление включено */
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden && settings.autoMin > 0) refreshLatest();

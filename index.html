@@ -108,12 +108,14 @@
     </section>
 
     <section class="panel" id="dbPanel">
-      <h2>Локальная база</h2>
+      <h2>Локальная база <button class="info-btn" id="dbNoteBtn" aria-expanded="false" aria-controls="dbNote" title="Как это работает">i</button></h2>
       <div class="db-row"><span class="db-info" id="dbInfo">—</span><span class="db-badge" id="dbBadge">—</span></div>
       <button class="db-save" id="dbSave" disabled>Сохранить базу</button>
-      <p class="db-note">Новые курсы догружаются с зеркала ЦБ РФ при открытии и копятся в браузере.
-        Кнопка перезаписывает файл <b>fx-history.js</b> рядом с приложением (в Chrome/Edge — напрямую,
-        в других браузерах — через скачивание: замените старый файл скачанным).</p>
+      <p class="db-note" id="dbNote" hidden>Новые курсы догружаются с зеркала ЦБ РФ при открытии и копятся в браузере.
+        «Сохранить базу» записывает их в файл <b>fx-history.js</b>: в локальной копии —
+        перезаписывает файл рядом с приложением (в Chrome/Edge напрямую, в остальных браузерах —
+        через скачивание, замените старый файл скачанным). Онлайн-версия обновляет базу сама
+        раз в сутки — там кнопка не требуется.</p>
     </section>
 
   </aside>
