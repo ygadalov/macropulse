@@ -1,0 +1,7 @@
+# ОС
+.DS_Store
+Thumbs.db
+
+# Логи и временное
+*.log
+node_modules/
