@@ -1152,20 +1152,20 @@
   });
   var dbSaveBtn = $('dbSave');
   if (dbSaveBtn) dbSaveBtn.addEventListener('click', saveDbFile);
-  /* пояснение «Локальной базы» — свёрнуто в (i), состояние запоминается */
+  /* тултип (i) «Локальной базы»: hover на десктопе, клик-переключение на таче */
   (function () {
-    var btn = $('dbNoteBtn'), note = $('dbNote');
-    if (!btn || !note) return;
-    function show(on, save) {
-      note.hidden = !on;
+    var btn = $('dbNoteBtn');
+    if (!btn) return;
+    var tip = $('dbNote');
+    if (tip) tip.addEventListener('click', function (e) { e.stopPropagation(); }); /* выделение текста не закрывает */
+    btn.addEventListener('click', function () {
+      var on = !btn.classList.contains('on');
       btn.classList.toggle('on', on);
       btn.setAttribute('aria-expanded', on ? 'true' : 'false');
-      if (save) { try { localStorage.setItem('mp:dbnote', on ? '1' : '0'); } catch (e) { /* noop */ } }
-    }
-    var open0 = false;
-    try { open0 = localStorage.getItem('mp:dbnote') === '1'; } catch (e) { /* noop */ }
-    show(open0, false);
-    btn.addEventListener('click', function () { show(note.hidden, true); });
+    });
+    document.addEventListener('click', function (e) {
+      if (!btn.contains(e.target)) { btn.classList.remove('on'); btn.setAttribute('aria-expanded', 'false'); }
+    });
   })();
   /* возврат на вкладку — проверить свежесть, если автообновление включено */
   document.addEventListener('visibilitychange', function () {
