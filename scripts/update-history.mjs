@@ -45,6 +45,12 @@ function valuteToDict(valute) {
   return Object.keys(dict).length ? dict : null;
 }
 
+/* регистрация валюты: ids — словарь кодов ЦБ, names — названия */
+function register(hist, cc, v) {
+  if (!hist.ids[cc] && v.ID) hist.ids[cc] = v.ID;
+  if (v.Name) hist.names[cc] = v.Name;
+}
+
 /* --- читаем базу --- */
 const raw = readFileSync(FILE, 'utf8');
 const start = raw.indexOf('window.FX_HIST=');
@@ -74,7 +80,7 @@ for (const day of days) {
   for (const cc of Object.keys(dict)) {
     if (!hist.cur[cc]) hist.cur[cc] = {};
     hist.cur[cc][day] = dict[cc];
-    if (data.Valute[cc] && data.Valute[cc].Name) hist.names[cc] = data.Valute[cc].Name;
+    register(hist, cc, data.Valute[cc] || {});
   }
   if (day > hist.lastDate) hist.lastDate = day;
   added++;
@@ -92,7 +98,7 @@ try {
     for (const cc of Object.keys(dict)) {
       if (!hist.cur[cc]) hist.cur[cc] = {};
       hist.cur[cc][day] = dict[cc];
-      if (snap.Valute[cc].Name) hist.names[cc] = snap.Valute[cc].Name;
+      register(hist, cc, snap.Valute[cc] || {});
     }
     hist.lastDate = day;
     console.log('снимок добавлен за ' + day);
@@ -102,7 +108,6 @@ try {
 /* --- записываем --- */
 hist.generated = new Date().toISOString();
 hist.to = hist.lastDate;
-hist.ids = Object.keys(hist.cur).sort();
 const out = '/* FX Forecast Terminal — локальная база курсов ЦБ РФ.\n' +
   '   Сгенерировано: ' + hist.generated + '. Период: ' + hist.from + ' .. ' + hist.to + '.\n' +
   '   Этот файл перезаписывается кнопкой «Сохранить базу» в приложении. */\n' +
