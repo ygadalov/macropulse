@@ -119,6 +119,7 @@
       '<span class="' + cls + '">' + arrow + ' ' + Math.abs(chg * 100).toFixed(2).replace('.', ',') + '%</span></span>';
   }
   function loadTicker(snap) {
+    if (SEC !== 'fx') return; /* тикер контекстный: чужой раздел — не трогаем */
     var html = '';
     TICKER_RUB.forEach(function (cc) {
       var v = rateOf(snap.cur, cc), p = snap.prev ? rateOf(snap.prev, cc) : null;
@@ -134,6 +135,82 @@
       ? html + html /* дублируем для бесшовной прокрутки */
       : '<span class="tk"><b>ЛЕНТА НЕДОСТУПНА</b></span>';
   }
+
+  /* ---------- разделы терминала и командный рельс ---------- */
+  var SEC = 'fx';
+  var SEC_NAMES = { fx: 'FX Forecast', zc: 'Zero Curve', kr: 'Key Rate', cpi: 'CPI' };
+  var RAIL_KEY = 'mp:rail'; /* full | mini | off */
+  var railCur = 'full', railLastVis = 'full';
+
+  /* факт-чип для тикеров разделов-заглушек (значение без знака изменения) */
+  function tkFact(label, val) {
+    return '<span class="tk"><b>' + label + '</b><span class="flat">' + val + '</span></span>';
+  }
+  function tickerStub(sec) {
+    var html = '';
+    if (sec === 'zc') {
+      ['1Y', '2Y', '3Y', '5Y', '7Y', '10Y'].forEach(function (t) { html += tkFact(t, '—'); });
+      html += tkFact('10Y−2Y', '—');
+      html += '<span class="tk-hint">Доходности ОФЗ появятся вместе с разделом</span>';
+    } else if (sec === 'kr') {
+      html += tkFact('Ключевая ставка', '—') + tkFact('Предыдущая', '—') +
+        tkFact('RUONIA', '—') + tkFact('След. заседание', '—');
+      html += '<span class="tk-hint">Ставка ЦБ РФ появится вместе с разделом</span>';
+    } else if (sec === 'cpi') {
+      html += tkFact('ИПЦ г/г', '—') + tkFact('ИПЦ м/м', '—') +
+        tkFact('Цель ЦБ', '4,0%') + tkFact('Отклонение', '—');
+      html += '<span class="tk-hint">Инфляция появится вместе с разделом</span>';
+    }
+    $('tickerTrack').innerHTML = html ? html + html : '';
+  }
+
+  function setSection(sec) {
+    if (!SEC_NAMES[sec] || sec === SEC) return;
+    SEC = sec;
+    document.querySelectorAll('.ritem').forEach(function (b) {
+      var on = b.dataset.sec === sec;
+      b.classList.toggle('act', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+    });
+    document.querySelectorAll('.section').forEach(function (s) {
+      s.hidden = s.id !== 'sec-' + sec;
+    });
+    ['setSecLabel', 'helpSecLabel'].forEach(function (id) {
+      var el = $(id); if (el) el.textContent = 'Раздел: ' + SEC_NAMES[sec];
+    });
+    document.querySelectorAll('.dsec').forEach(function (d) {
+      d.hidden = d.dataset.dsec !== sec;
+    });
+    if (sec === 'fx') tickerFromDb(); else tickerStub(sec);
+    window.scrollTo(0, 0);
+  }
+
+  /* рельс: full / mini / off; выбор пользователя — в localStorage */
+  function railPref() { try { return localStorage.getItem(RAIL_KEY); } catch (e) { return null; } }
+  function applyRail(st, save) {
+    railCur = st;
+    if (st !== 'off') railLastVis = st;
+    var rail = $('rail');
+    rail.classList.toggle('mini', st === 'mini');
+    rail.classList.toggle('off', st === 'off');
+    rail.setAttribute('aria-hidden', st === 'off' ? 'true' : 'false');
+    var tg = $('railToggle');
+    tg.textContent = st === 'mini' ? '›' : '‹';
+    tg.title = st === 'mini' ? 'Развернуть панель разделов' : 'Свернуть панель разделов';
+    if (save) { try { localStorage.setItem(RAIL_KEY, st); } catch (e) { /* noop */ } }
+  }
+  function railVisibleToggle() { applyRail(railCur === 'off' ? railLastVis : 'off', true); }
+  document.querySelectorAll('.ritem').forEach(function (b) {
+    b.addEventListener('click', function () { setSection(b.dataset.sec); });
+  });
+  $('railToggle').addEventListener('click', function () {
+    applyRail(railCur === 'mini' ? 'full' : 'mini', true);
+  });
+  $('railBtn').addEventListener('click', railVisibleToggle);
+  /* без сохранённого выбора рельс сам переходит в mini на узких окнах */
+  window.addEventListener('resize', function () {
+    if (!railPref()) applyRail(window.innerWidth < 1180 ? 'mini' : 'full', false);
+  });
 
   /* ---------- список валют (полный перечень ЦБ + RUB, из локальной базы) ---------- */
   var PIN = ['USD', 'EUR', 'RUB', 'CNY', 'GBP', 'CHF', 'JPY', 'KZT'];
@@ -1046,7 +1123,11 @@
   $('helpBtn').addEventListener('click', openHelp);
   $('helpClose').addEventListener('click', closeHelp);
   $('drawerBackdrop').addEventListener('click', closeDrawers);
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDrawers(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { closeDrawers(); return; }
+    /* Ctrl+B / Cmd+B — показать/скрыть рельс (код клавиши — чтобы работало и в русской раскладке) */
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyB') { e.preventDefault(); railVisibleToggle(); }
+  });
   $('autoSeg').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
     if (!btn) return;
@@ -1230,6 +1311,7 @@
   function boot() {
     purgeLegacyCache();
     syncHdrH();
+    applyRail(railPref() || (window.innerWidth < 1180 ? 'mini' : 'full'), false);
     settingsLoad();
     applyWindowFromSettings();
     syncAutoSeg();
@@ -1243,6 +1325,8 @@
     }
     buildCurrencies();
     updateDbPanel();
+    var fu = $('ftrUpdated');
+    if (fu && DB.lastDate) fu.textContent = 'База на ' + fmtDateRU(DB.lastDate);
     /* сеть при старте не нужна: список валют, тикер и график — из локальной базы */
     tickerFromDb();
     loadSeries();

@@ -12,15 +12,22 @@
 <body>
 
 <header class="hdr">
+  <button class="icon-btn rail-btn" id="railBtn" title="Панель разделов (Ctrl+B)" aria-label="Панель разделов">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+  </button>
   <div class="logo" aria-hidden="true">
-    <svg viewBox="0 0 26 26" fill="none">
-      <circle cx="13" cy="13" r="11.5" stroke="currentColor" stroke-width="1.4"/>
-      <circle cx="13" cy="13" r="7" stroke="currentColor" stroke-width="1" opacity=".5"/>
-      <circle cx="13" cy="13" r="2.4" fill="currentColor"/>
-      <path d="M13 13 L21 6" stroke="currentColor" stroke-width="1.4"/>
-      <circle cx="21" cy="6" r="1.6" fill="currentColor"/>
+    <svg viewBox="0 0 64 64" fill="none" class="logo-mark">
+      <circle cx="32" cy="32" r="24" stroke="#9aa7b4" stroke-width="2.6" opacity=".85"/>
+      <ellipse cx="32" cy="32" rx="11.5" ry="24" stroke="#9aa7b4" stroke-width="2.6" opacity=".85"/>
+      <ellipse cx="32" cy="32" rx="21.6" ry="24" stroke="#9aa7b4" stroke-width="2.6" opacity=".85"/>
+      <line x1="9.8" y1="22.8" x2="54.2" y2="22.8" stroke="#9aa7b4" stroke-width="2.6" opacity=".85"/>
+      <line x1="9.8" y1="41.2" x2="54.2" y2="41.2" stroke="#9aa7b4" stroke-width="2.6" opacity=".85"/>
+      <path d="M1,32 H24 l4,-9 l6,18 l4.5,-14 l3.5,5 H63" stroke="var(--cyan)" stroke-width="4.4" stroke-linejoin="round" stroke-linecap="round"/>
     </svg>
-    <h1>FX <span>Forecast</span> Terminal</h1>
+    <div class="wordmark">
+      <h1>MACRO<span>PULSE</span></h1>
+      <div class="logo-sub">Macroeconomic Terminal</div>
+    </div>
   </div>
   <div class="spacer"></div>
   <button class="icon-btn" id="settingsBtn" title="Настройки" aria-label="Настройки">
@@ -37,7 +44,30 @@
   <div class="ticker-track" id="tickerTrack"><span class="tk"><b>ЗАГРУЗКА КОТИРОВОК…</b></span></div>
 </div>
 
-<main class="layout">
+<div class="shell">
+
+  <!-- ===== командный рельс: разделы терминала ===== -->
+  <nav class="rail" id="rail" aria-label="Разделы терминала">
+    <button class="ritem act" data-sec="fx" data-label="FX Forecast" aria-current="page">
+      <span class="rcode">FX</span><span class="rlbl">FX Forecast</span>
+    </button>
+    <button class="ritem" data-sec="zc" data-label="Zero Curve">
+      <span class="rcode">ZC</span><span class="rlbl">Zero Curve</span><span class="soon">скоро</span>
+    </button>
+    <button class="ritem" data-sec="kr" data-label="Key Rate">
+      <span class="rcode">KR</span><span class="rlbl">Key Rate</span><span class="soon">скоро</span>
+    </button>
+    <button class="ritem" data-sec="cpi" data-label="CPI — инфляция">
+      <span class="rcode">CPI</span><span class="rlbl">CPI</span><span class="soon">скоро</span>
+    </button>
+    <div class="rail-foot">
+      <button class="rtoggle" id="railToggle" title="Свернуть панель разделов" aria-label="Свернуть панель разделов">‹</button>
+    </div>
+  </nav>
+
+  <div class="content">
+
+<main class="layout section act" id="sec-fx">
 
   <!-- ===== left: controls ===== -->
   <aside class="col col-left">
@@ -138,9 +168,47 @@
   </aside>
 </main>
 
+<!-- ===== заглушки будущих разделов ===== -->
+<section class="section stub-sec" id="sec-zc" hidden>
+  <div class="stub">
+    <span class="stub-code">ZC</span>
+    <h2 class="stub-name">Zero Curve</h2>
+    <div class="stub-badge">В разработке</div>
+    <p class="stub-desc">Кривая бескупонной доходности ОФЗ: форма кривой по срокам,
+      наклон 10Y−2Y, история с 2014 года, коэффициенты Нельсона–Сигеля.</p>
+    <div class="stub-meta">Источник: MOEX ISS (zcyc) · План: v0.3</div>
+  </div>
+</section>
+
+<section class="section stub-sec" id="sec-kr" hidden>
+  <div class="stub">
+    <span class="stub-code">KR</span>
+    <h2 class="stub-name">Key Rate</h2>
+    <div class="stub-badge">В разработке</div>
+    <p class="stub-desc">Ключевая ставка ЦБ РФ: история изменений, даты заседаний
+      Совета директоров, RUONIA и спред к ставке.</p>
+    <div class="stub-meta">Источник: cbr.ru · План: v0.3</div>
+  </div>
+</section>
+
+<section class="section stub-sec" id="sec-cpi" hidden>
+  <div class="stub">
+    <span class="stub-code">CPI</span>
+    <h2 class="stub-name">CPI</h2>
+    <div class="stub-badge">В разработке</div>
+    <p class="stub-desc">Инфляция: г/г и м/м динамика, цель ЦБ 4,0% и отклонение от неё,
+      компоненты индекса потребительских цен.</p>
+    <div class="stub-meta">Источник: Росстат / ЦБ РФ · План: v0.4</div>
+  </div>
+</section>
+
+  </div><!-- /content -->
+</div><!-- /shell -->
+
 <footer class="ftr">
-  <span>FX Forecast Terminal</span>
-  <span>Данные: официальные курсы ЦБ РФ (cbr.ru) · локальная база fx-history.js</span>
+  <span>MacroPulse · Macroeconomic Terminal</span>
+  <span id="ftrSource">Данные: официальные курсы ЦБ РФ (cbr.ru) · локальная база fx-history.js</span>
+  <span id="ftrUpdated"></span>
   <span>Не инвестиционная рекомендация</span>
 </footer>
 
@@ -153,20 +221,9 @@
       <svg viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
     </button>
   </div>
-  <div class="field">
-    <label id="autoLabel">Автообновление данных</label>
-    <div class="seg" role="group" aria-labelledby="autoLabel" id="autoSeg" style="grid-template-columns:repeat(5,1fr)">
-      <button data-min="0" aria-pressed="true">ВЫКЛ</button>
-      <button data-min="5">5М</button>
-      <button data-min="15">15М</button>
-      <button data-min="30">30М</button>
-      <button data-min="60">60М</button>
-    </div>
-    <p class="note" style="margin-top:8px">
-      Свежий снимок ЦБ подтягивается в фоне без перезагрузки страницы: обновляется лента,
-      а когда ЦБ установит новый курс — догружается история и пересчитывается прогноз.
-    </p>
-  </div>
+  <div class="drawer-sec" id="setSecLabel">Раздел: FX Forecast</div>
+
+  <div class="dsec" data-dsec="fx">
   <div class="field">
     <label id="modelModeLabel">Параметры Холта</label>
     <div class="seg" role="group" aria-labelledby="modelModeLabel" id="modelModeSeg" style="grid-template-columns:repeat(2,1fr)">
@@ -196,6 +253,27 @@
       моделей сглаживает крайние значения.
     </p>
   </div>
+  </div><!-- /dsec fx -->
+
+  <div class="dsec" data-dsec="zc" hidden><p class="note">Раздел <b>Zero Curve</b> в разработке — настройки кривой доходности появятся вместе с ним.</p></div>
+  <div class="dsec" data-dsec="kr" hidden><p class="note">Раздел <b>Key Rate</b> в разработке — настройки появятся вместе с ним.</p></div>
+  <div class="dsec" data-dsec="cpi" hidden><p class="note">Раздел <b>CPI</b> в разработке — настройки появятся вместе с ним.</p></div>
+
+  <div class="drawer-sec">Общие</div>
+  <div class="field">
+    <label id="autoLabel">Автообновление данных</label>
+    <div class="seg" role="group" aria-labelledby="autoLabel" id="autoSeg" style="grid-template-columns:repeat(5,1fr)">
+      <button data-min="0" aria-pressed="true">ВЫКЛ</button>
+      <button data-min="5">5М</button>
+      <button data-min="15">15М</button>
+      <button data-min="30">30М</button>
+      <button data-min="60">60М</button>
+    </div>
+    <p class="note" style="margin-top:8px">
+      Свежий снимок ЦБ подтягивается в фоне без перезагрузки страницы: обновляется лента,
+      а когда ЦБ установит новый курс — догружается история и пересчитывается прогноз.
+    </p>
+  </div>
   <div class="field" style="margin-bottom:0">
     <label>Кэш резервного канала</label>
     <div class="cache-row">
@@ -218,7 +296,9 @@
       <svg viewBox="0 0 14 14" fill="none"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
     </button>
   </div>
+  <div class="drawer-sec" id="helpSecLabel">Раздел: FX Forecast</div>
 
+  <div class="dsec" data-dsec="fx">
   <h3 class="help-h">Модель</h3>
   <p class="note">
     Краткосрочный прогноз — <b>ансамбль из трёх моделей</b> по логарифму курса:
@@ -249,6 +329,28 @@
     жила в файле и переносилась вместе с папкой на любой ПК. Ключи и VPN не требуются.
     Прогноз носит статистический характер и <b>не является инвестиционной рекомендацией</b>.
   </p>
+  </div>
+
+  <div class="dsec" data-dsec="zc" hidden>
+    <h3 class="help-h">Zero Curve</h3>
+    <p class="note">Раздел в разработке. Здесь будет кривая бескупонной доходности ОФЗ
+      (ZCY Curve) по данным MOEX ISS: форма кривой, сдвиги за день/неделю/месяц,
+      наклон 10Y−2Y и история ключевых сроков. Справка появится вместе с разделом.</p>
+  </div>
+
+  <div class="dsec" data-dsec="kr" hidden>
+    <h3 class="help-h">Key Rate</h3>
+    <p class="note">Раздел в разработке. Здесь будет история ключевой ставки ЦБ РФ,
+      календарь заседаний Совета директоров, сопутствующие ставки (RUONIA) и сигналы
+      из пресс-релизов. Справка появится вместе с разделом.</p>
+  </div>
+
+  <div class="dsec" data-dsec="cpi" hidden>
+    <h3 class="help-h">CPI</h3>
+    <p class="note">Раздел в разработке. Здесь будет инфляция: ИПЦ год к году и месяц
+      к месяцу (Росстат / ЦБ РФ), отклонение от цели ЦБ 4,0%, компоненты и сезонность.
+      Справка появится вместе с разделом.</p>
+  </div>
 </aside>
 
 <script src="./fx-history.js"></script>
