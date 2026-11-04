@@ -1,0 +1,31 @@
+name: Обновление базы курсов ЦБ
+
+on:
+  schedule:
+    # 09:30 UTC = 12:30 МСК — после публикации официальных курсов ЦБ РФ на текущую дату
+    - cron: '30 9 * * *'
+  workflow_dispatch:   # ручной запуск: Actions → «Обновление базы курсов ЦБ» → Run workflow
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Догрузка дельты курсов
+        run: node scripts/update-history.mjs
+
+      - name: Коммит изменений
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fx-history.js
+          if git diff --cached --quiet; then
+            echo "Изменений нет — база актуальна"
+          else
+            git commit -m "data: дельта курсов ЦБ РФ ($(date -u +%Y-%m-%d))"
+            git push
+          fi
