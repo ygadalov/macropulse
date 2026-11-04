@@ -331,16 +331,16 @@ tr:last-child td{border-bottom:none}
 /* --- командный рельс: 3 состояния (полный / mini / скрыт) --- */
 .rail{
   flex:none;width:128px;
-  position:sticky;top:var(--hdrh,52px);align-self:flex-start;
-  height:calc(100dvh - var(--hdrh,52px));
+  position:sticky;top:calc(var(--hdrh,52px) + var(--tkh,34px));align-self:flex-start;
+  height:calc(100dvh - var(--hdrh,52px) - var(--tkh,34px));
   display:flex;flex-direction:column;gap:4px;
-  padding:14px 8px 10px;
+  padding:10px 8px 10px;
   background:var(--panel);
   border-right:1px solid var(--border);
   transition:width .18s ease;
   overflow:hidden;
 }
-.rail.off{width:0;padding:14px 0 10px;border-right:none}
+.rail.off{width:0;padding:10px 0;border-right:none}
 .ritem{
   position:relative;
   display:flex;flex-direction:column;align-items:flex-start;gap:3px;
@@ -369,7 +369,7 @@ tr:last-child td{border-bottom:none}
   color:var(--amber);border:1px solid rgba(251,191,36,.4);border-radius:3px;
   padding:1px 4px;line-height:1.4;
 }
-.rail-foot{margin-top:auto;display:flex;justify-content:flex-end}
+.rail-foot{display:flex;justify-content:flex-end;margin-bottom:6px}
 .rtoggle{
   display:grid;place-items:center;width:26px;height:26px;padding:0;
   background:transparent;border:1px solid var(--border-strong);border-radius:2px;
@@ -379,7 +379,7 @@ tr:last-child td{border-bottom:none}
 .rtoggle:hover{color:var(--cyan);border-color:var(--cyan)}
 
 /* mini: только коды, подписи в тултипах */
-.rail.mini{width:52px;padding:14px 6px 10px}
+.rail.mini{width:52px;padding:10px 6px}
 .rail.mini .ritem{align-items:center;padding:10px 0 9px}
 .rail.mini .rlbl,.rail.mini .soon{display:none}
 .rail.mini .ritem::after{

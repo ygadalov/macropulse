@@ -1111,10 +1111,12 @@
     if (!$('settingsDrawer').classList.contains('open')) $('drawerBackdrop').classList.remove('open');
   }
   function closeDrawers() { closeSettings(); closeHelp(); }
-  /* высота шапки на мобильном плавает (перенос в две строки) — drawer прибиваем к её нижней кромке */
+  /* высота шапки и тикера плавает (переносы на узких окнах) — рельс и drawer'ы прибиваем к их нижней кромке */
   function syncHdrH() {
     var h = document.querySelector('.hdr');
     if (h) document.documentElement.style.setProperty('--hdrh', h.offsetHeight + 'px');
+    var tk = document.querySelector('.ticker');
+    if (tk) document.documentElement.style.setProperty('--tkh', tk.offsetHeight + 'px');
   }
   window.addEventListener('resize', syncHdrH);
   window.addEventListener('orientationchange', syncHdrH);
