@@ -49,15 +49,16 @@ button,select,input{cursor:pointer;font-family:var(--mono)}
   border-bottom:1px solid var(--border);
 }
 .hdr .logo{display:flex;align-items:center;gap:11px;color:var(--cyan)}
-.hdr .logo .logo-mark{width:32px;height:32px;flex:none}
+.hdr .logo .logo-mark{width:36px;height:36px;flex:none}
 .hdr h1{
-  font-size:13px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;
+  font-size:15px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
   color:var(--text);
 }
 .hdr h1 span{color:var(--cyan)}
-.wordmark{display:flex;flex-direction:column;gap:2px;line-height:1}
+.wordmark{display:flex;flex-direction:column;gap:3px;line-height:1}
 .logo-sub{
-  font-size:8.5px;font-weight:600;letter-spacing:.34em;text-transform:uppercase;
+  /* 8px JBM без трекинга ≈ ширине бренда (15px/.14em) — подпись ровно под MACROPULSE */
+  font-size:8px;font-weight:600;letter-spacing:.05px;text-transform:uppercase;
   color:var(--text-3);white-space:nowrap;
 }
 .rail-btn{color:var(--text-2)}
