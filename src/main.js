@@ -945,6 +945,19 @@
         (nB ? fmt(totB / nB) : '—') + '</td><td class="mut">' + fmt(totC / nC) + '</td></tr>';
     }
     body.innerHTML = html;
+    /* мин/макс окна (по дням фактических установок) */
+    var foot = $('avgFoot');
+    if (foot) {
+      var mn = null, mx = null;
+      lastRows.forEach(function (r) {
+        if (!isSetDay(r.d)) return;
+        if (!mn || r.v < mn.v) mn = r;
+        if (!mx || r.v > mx.v) mx = r;
+      });
+      foot.innerHTML = (mn && mx) ?
+        '<div class="row"><span class="k">Минимум окна</span><span class="v">' + fmt(mn.v) + '<small>' + fmtDateShort(mn.d) + '</small></span></div>' +
+        '<div class="row"><span class="k">Максимум окна</span><span class="v">' + fmt(mx.v) + '<small>' + fmtDateShort(mx.d) + '</small></span></div>' : '';
+    }
   }
   $('avgSeg').addEventListener('click', function (e) {
     var btn = e.target.closest('button');

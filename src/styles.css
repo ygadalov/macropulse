@@ -265,7 +265,7 @@ tr:last-child td{border-bottom:none}
 .panel h2.fc-head{flex-direction:column;align-items:flex-start;gap:4px}
 .fc-sub{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:none;color:var(--text-2)}
 
-.fc-scroll{max-height:340px;overflow-y:auto;margin:0 -4px;padding:0 4px}
+.fc-scroll{max-height:600px;overflow-y:auto;margin:0 -4px;padding:0 4px}
 .fc-scroll thead th{position:sticky;top:0;background:var(--panel);z-index:1}
 /* горизонт прогноза в панели прогноза */
 .fc-horizon{margin-bottom:12px}
@@ -303,12 +303,24 @@ tr:last-child td{border-bottom:none}
 .avg-panel{margin-bottom:0;display:flex;flex-direction:column}
 .avg-seg{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:10px}
 .avg-scroll{max-height:264px;overflow-y:auto;margin:0 -4px;padding:0 4px}
+.avg-foot{
+  margin-top:auto;padding-top:10px;border-top:1px solid var(--line);
+  display:flex;flex-direction:column;gap:6px;
+}
+.avg-foot .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12px}
+.avg-foot .k{color:var(--text-3);font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+.avg-foot .v{font-variant-numeric:tabular-nums;color:var(--text);font-weight:600;white-space:nowrap}
+.avg-foot .v small{color:var(--text-3);font-weight:400;margin-left:6px}
 .avg-scroll thead th{position:sticky;top:0;background:var(--panel);z-index:1}
 #avgTable td.mut, #avgTable th.mut{color:var(--text-2)}
 #avgTable tr.total td{border-top:1px solid var(--line);font-weight:700;color:var(--text)}
 /* широкий экран: средние — отдельная третья колонка справа */
 @media (min-width:1401px){
   .layout{grid-template-columns:minmax(0,1fr) 340px 300px}
+  .col-center{grid-row:1 / span 2;display:flex;flex-direction:column}
+  .chart-panel{flex:1;display:flex;flex-direction:column}
+  .chart-wrap{flex:1;height:auto;min-height:420px}
+  .chart-wrap canvas{position:absolute;inset:0}
   .col-right{display:contents}
   .col-right > .panel:first-child{grid-column:2;grid-row:1}   /* прогноз */
   .col-right > .avg-panel{grid-column:3;grid-row:1 / span 2}  /* средние на всю высоту */
