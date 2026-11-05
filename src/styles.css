@@ -316,16 +316,22 @@ tr:last-child td{border-bottom:none}
 #avgTable tr.total td{border-top:1px solid var(--line);font-weight:700;color:var(--text)}
 /* широкий экран: средние — отдельная третья колонка справа */
 @media (min-width:1401px){
-  .layout{grid-template-columns:minmax(0,1fr) 340px 300px}
-  .col-center{grid-row:1 / span 2;display:flex;flex-direction:column}
-  .chart-panel{flex:1;display:flex;flex-direction:column}
-  .chart-wrap{flex:1;height:auto;min-height:420px}
+  /* весь терминал в один экран: высота сетки = вьюпорт − шапка − тикер − статус-бар */
+  .layout{grid-template-columns:minmax(0,1fr) 340px 300px;
+    grid-template-rows:minmax(0,1fr) auto;
+    height:calc(100dvh - var(--hdrh,52px) - var(--tkh,34px) - var(--ftrh,40px) - 2px);
+    min-height:0}
+  .col-center{grid-row:1 / span 2;display:flex;flex-direction:column;min-height:0}
+  .chart-panel{flex:1;min-height:0;display:flex;flex-direction:column}
+  .chart-wrap{flex:1;height:auto;min-height:220px}
   .chart-wrap canvas{position:absolute;inset:0}
   .col-right{display:contents}
-  .col-right > .panel:first-child{grid-column:2;grid-row:1}   /* прогноз */
-  .col-right > .avg-panel{grid-column:3;grid-row:1 / span 2}  /* средние на всю высоту */
-  .col-right > .panel:last-child{grid-column:2;grid-row:2}    /* тренд */
-  .avg-scroll{max-height:none;flex:1;min-height:220px}
+  .col-right > .panel:first-child{grid-column:2;grid-row:1;min-height:0;display:flex;flex-direction:column}  /* прогноз */
+  .col-right > .panel:first-child .fc-scroll{flex:1;min-height:60px;max-height:none}
+  .col-right > .avg-panel{grid-column:3;grid-row:1 / span 2;align-self:start;max-height:100%}            /* средние — по содержимому */
+  .col-right > .panel:last-child{grid-column:2;grid-row:2}                                               /* тренд */
+  .avg-scroll{max-height:none;flex:0 1 auto;min-height:80px}
+}
 }
 
 .badge{
