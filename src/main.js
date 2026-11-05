@@ -674,6 +674,8 @@
 
     var end = new Date();
     var start = new Date(end.getTime() - state.windowDays * 864e5);
+    var fromD = new Date(DB.from + 'T12:00:00Z'); /* MAX: не раньше начала базы */
+    if (start < fromD) start = fromD;
     fetchRows(isoDay(start), isoDay(end), seq).then(function (rows) {
       if (seq !== loadSeq) return; /* устаревший ответ */
       lastRows = rows;
@@ -751,6 +753,7 @@
     renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n);
     renderForecastTable(fcDates, fcVals, last);
     renderTrend(driftYear, reg.r2, vol, fcVals, values, dates);
+    renderAvg();
     renderModelParams(ens);
     hideState();
   }
@@ -898,6 +901,60 @@
     $('fcCount').textContent = fmtDateShort(fcDates[0]) + ' — ' + fmtDateShort(fcDates[fcDates.length - 1]) + ' (' + fcDates.length + ' раб. дн.)';
   }
 
+
+  /* ---------- средние курсы за период (мес/кв/год) ---------- */
+  var avgMode = 'm';
+  function fmtMonthLab(y, m) {
+    var MN = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+    return MN[m] + ' ' + y;
+  }
+  function renderAvg() {
+    var body = $('avgBody');
+    if (!body) return;
+    if (!lastRows || !lastRows.length) { body.innerHTML = '<tr><td colspan="3" class="d">—</td></tr>'; return; }
+    var bMap = DB.cur[state.base] || {}, qMap = DB.cur[state.quote] || {};
+    function isSetDay(iso) { /* день фактической установки обоих курсов (не ffill) */
+      return (state.base === 'RUB' || bMap[iso] != null) && (state.quote === 'RUB' || qMap[iso] != null);
+    }
+    function pkey(iso) {
+      var y = +iso.slice(0, 4), m = +iso.slice(5, 7) - 1;
+      if (avgMode === 'm') return { id: y * 12 + m, lab: fmtMonthLab(y, m), sort: y * 12 + m, pEnd: isoDay(new Date(Date.UTC(y, m + 1, 0, 12))) };
+      if (avgMode === 'q') { var q = Math.floor(m / 3) + 1; return { id: y * 4 + q, lab: q + ' кв. ' + y, sort: y * 4 + q, pEnd: isoDay(new Date(Date.UTC(y, q * 3, 0, 12))) }; }
+      return { id: y, lab: String(y), sort: y, pEnd: y + '-12-31' };
+    }
+    var groups = {}, order = [];
+    var totB = 0, nB = 0, totC = 0, nC = 0;
+    var winLast = lastRows[lastRows.length - 1].d;
+    lastRows.forEach(function (r) {
+      var k = pkey(r.d);
+      var g = groups[k.id];
+      if (!g) { g = groups[k.id] = { lab: k.lab, sort: k.sort, pEnd: k.pEnd, sumB: 0, nB: 0, sumC: 0, nC: 0 }; order.push(k.id); }
+      g.sumC += r.v; g.nC++; totC += r.v; nC++;
+      if (isSetDay(r.d)) { g.sumB += r.v; g.nB++; totB += r.v; nB++; }
+    });
+    var ids = order.sort(function (a, b) { return groups[a].sort - groups[b].sort; });
+    var html = '';
+    ids.forEach(function (id) {
+      var g = groups[id];
+      var partial = g.pEnd > winLast ? ' *' : ''; /* текущий период ещё не завершён */
+      html += '<tr><td class="d">' + g.lab + partial + '</td><td>' +
+        (g.nB ? fmt(g.sumB / g.nB) : '—') + '</td><td class="mut">' + fmt(g.sumC / g.nC) + '</td></tr>';
+    });
+    if (ids.length > 1) {
+      html += '<tr class="total"><td class="d">Итого за период</td><td>' +
+        (nB ? fmt(totB / nB) : '—') + '</td><td class="mut">' + fmt(totC / nC) + '</td></tr>';
+    }
+    body.innerHTML = html;
+  }
+  $('avgSeg').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    this.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+    btn.setAttribute('aria-pressed', 'true');
+    avgMode = btn.dataset.avg;
+    renderAvg();
+  });
+
   /* ---------- карточка тренда ---------- */
   function renderTrend(driftYear, r2, vol, fcVals, values, dates) {
     var abs = Math.abs(driftYear);
@@ -922,8 +979,19 @@
       trow('Прогноз на ' + fmtDateRU(nextCbrDays(dates[dates.length - 1], state.horizon)[state.horizon - 1]), fmt(fcEnd), '') +
       trow('Сила тренда (R²)', (r2 * 100).toFixed(0) + ' %', '') +
       trow('Волатильность, год.', (vol * 100).toFixed(1).replace('.', ',') + ' %', '') +
-      trow('Окно анализа', fmtDateShort(dates[0]) + ' — ' + fmtDateShort(dates[dates.length - 1]) + ' · ~' + years.toFixed(1).replace('.', ',') + ' г.', '') +
+      trow('Окно анализа', fmtDateShort(dates[0]) + ' — ' + fmtDateShort(dates[dates.length - 1]) + ' · ~' + fmtWindow(years), '') +
       '<p class="note" style="margin-top:10px">' + comment + ' Чем выше R², тем устойчивее тренд; при R² ниже ~30 % тренд скорее шум.</p>';
+  }
+  /* окно анализа человечески: <1 года — месяцы, целые годы — без дроби */
+  /* универсальный формат периода: «6 м.» до года; далее по русской грамматике —
+     1 г., 2–4 г., 5+ л.; дробные — «1,5 г.» */
+  function fmtWindow(years) {
+    if (years < 1) return Math.max(1, Math.round(years * 12)) + ' м.';
+    var yr = Math.round(years);
+    if (Math.abs(years - yr) >= 0.08) return years.toFixed(1).replace('.', ',') + ' г.';
+    var d10 = yr % 10, d100 = yr % 100;
+    var unit = (d10 === 1 && d100 !== 11) ? ' г.' : (d10 >= 2 && d10 <= 4 && (d100 < 12 || d100 > 14)) ? ' г.' : ' л.';
+    return yr + unit;
   }
   function trow(k, v, cls) {
     return '<div class="trow"><span class="k">' + k + '</span><span class="v ' + cls + '">' + v + '</span></div>';
@@ -945,6 +1013,8 @@
     if (seg) seg.querySelectorAll('button').forEach(function (b) {
       b.setAttribute('aria-pressed', String(parseInt(b.dataset.days, 10) === settings.winDays));
     });
+    setWinMode(settings.winMode || 'chips');
+    winSliderSync();
   }
   $('winSeg').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
@@ -955,6 +1025,50 @@
     settings.winDays = state.windowDays;
     settingsSave();
     loadSeries();
+  });
+  /* режим выбора окна: пресеты-чипы или свободный ползунок (месяцы + MAX) */
+  var winSliderTimer = null;
+  function winMaxMonths() { /* полных месяцев базы + крайняя позиция MAX */
+    var d0 = new Date(DB.from + 'T12:00:00Z'), d1 = new Date();
+    return (d1.getUTCFullYear() - d0.getUTCFullYear()) * 12 + (d1.getUTCMonth() - d0.getUTCMonth()) + 1;
+  }
+  function monthsToDays(m) { return Math.round(m * 365.25 / 12); }
+  function daysToMonths(d) { return Math.round(d * 12 / 365.25); }
+  function winSliderSync() {
+    var sl = $('winSlider'); if (!sl || !DB || !DB.from) return;
+    sl.max = winMaxMonths();
+    sl.value = state.windowDays >= 99999 ? sl.max : Math.max(1, Math.min(+sl.max - 1, daysToMonths(state.windowDays)));
+    var b = $('winVal');
+    b.textContent = +sl.value === +sl.max ? 'MAX (вся база)' : fmtWindow(+sl.value / 12);
+    sl.style.setProperty('--fill', ((sl.value - sl.min) / (sl.max - sl.min) * 100) + '%');
+  }
+  function setWinMode(mode) {
+    settings.winMode = mode; settingsSave();
+    $('winMode').querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
+    });
+    $('winSeg').hidden = mode !== 'chips';
+    $('winRange').hidden = mode !== 'range';
+    if (mode === 'range') winSliderSync();
+  }
+  $('winMode').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (btn) setWinMode(btn.dataset.mode);
+  });
+  $('winSlider').addEventListener('input', function () {
+    var m = +this.value, isMax = m === +this.max;
+    $('winVal').textContent = isMax ? 'MAX (вся база)' : fmtWindow(m / 12);
+    this.style.setProperty('--fill', ((m - this.min) / (this.max - this.min) * 100) + '%');
+    /* подсветка чипа, если значение совпало с пресетом */
+    var days = isMax ? 99999 : monthsToDays(m);
+    $('winSeg').querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(parseInt(b.dataset.days, 10) === days));
+    });
+    clearTimeout(winSliderTimer);
+    winSliderTimer = setTimeout(function () {
+      state.windowDays = days; settings.winDays = days; settingsSave();
+      loadSeries();
+    }, 250);
   });
   var horizonTimer = null;
   $('horizon').addEventListener('input', function () {
@@ -970,7 +1084,7 @@
   $('horizon').style.setProperty('--fill', ((14 - 3) / 57 * 100) + '%');
 
   /* ---------- настройки (выдвижная панель) ---------- */
-  var settings = { autoMin: 0, modelMode: 'auto', holt: { alpha: 0.6, beta: 0.1, phi: 0.95 }, winDays: 180 };
+  var settings = { autoMin: 0, modelMode: 'auto', holt: { alpha: 0.6, beta: 0.1, phi: 0.95 }, winDays: 180, winMode: 'chips' };
   var lastSeriesEnd = null; /* последняя дата установки в загруженном ряде */
   var autoTimer = null;
 
@@ -980,7 +1094,8 @@
       if (!s) return;
       if (typeof s.autoMin === 'number') settings.autoMin = s.autoMin;
       if (s.modelMode === 'manual') settings.modelMode = 'manual';
-      if (typeof s.winDays === 'number' && [180, 365, 730, 1825, 3650].indexOf(s.winDays) !== -1) settings.winDays = s.winDays;
+      if (typeof s.winDays === 'number' && s.winDays >= 30 && s.winDays <= 100000) settings.winDays = s.winDays;
+      if (s.winMode === 'chips' || s.winMode === 'range') settings.winMode = s.winMode;
       if (s.holt) {
         ['alpha', 'beta', 'phi'].forEach(function (k) {
           if (typeof s.holt[k] === 'number') settings.holt[k] = s.holt[k];

@@ -105,7 +105,7 @@ button,select,input{cursor:pointer;font-family:var(--mono)}
 /* ===== layout ===== */
 .layout{
   display:grid;
-  grid-template-columns:280px minmax(0,1fr) 340px;
+  grid-template-columns:minmax(0,1fr) 340px;
   gap:1px;
   background:var(--border);
   min-height:calc(100dvh - 96px);
@@ -255,7 +255,7 @@ th{
   color:var(--text-3);font-weight:600;padding:6px 4px;border-bottom:1px solid var(--border);
 }
 th:first-child,td:first-child{text-align:left}
-td{padding:6px 4px;font-size:12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--text)}
+td{padding:6px 4px;font-size:12px;border-bottom:1px solid rgba(26,37,64,.5);color:var(--text);text-align:right}
 td.d{color:var(--text-2)}
 td.up{color:var(--mint)}
 td.dn{color:var(--red)}
@@ -267,6 +267,54 @@ tr:last-child td{border-bottom:none}
 
 .fc-scroll{max-height:340px;overflow-y:auto;margin:0 -4px;padding:0 4px}
 .fc-scroll thead th{position:sticky;top:0;background:var(--panel);z-index:1}
+/* горизонт прогноза в панели прогноза */
+.fc-horizon{margin-bottom:12px}
+/* контрольная панель: пара + окно анализа над графиком — одна строка */
+.ctrlbar{display:flex;gap:28px;align-items:flex-end;justify-content:space-between;flex-wrap:nowrap}
+.ctrl-group label{display:block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px}
+.ctrl-group:first-child{flex:0 0 auto;width:340px}
+.ctrl-win{flex:1;min-width:0}
+.ctrl-win .seg{display:grid;grid-template-columns:repeat(6,1fr)}
+/* единая высота контролов панели: селекты, своп, чипы окон */
+.ctrlbar select,.ctrlbar .swap,.ctrl-win .seg button{height:38px;padding-top:0;padding-bottom:0}
+.ctrlbar .seg button{display:flex;align-items:center;justify-content:center}
+/* шапка блока окна: подпись слева, переключатель режима справа */
+.win-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.win-head label{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-2);margin-bottom:0}
+.win-mode{display:flex;gap:2px}
+.win-mode button{
+  background:transparent;border:1px solid var(--border);color:var(--text-3);
+  padding:3px 8px;border-radius:2px;transition:all .15s ease;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.win-mode button svg{width:13px;height:13px;display:block}
+.win-mode button:hover{color:var(--text);border-color:var(--border-strong)}
+.win-mode button[aria-pressed="true"]{color:var(--cyan);border-color:var(--cyan);background:rgba(34,211,238,.08)}
+#winSeg[hidden],#winRange[hidden]{display:none}
+/* ползунок окна анализа — та же высота, что и сетка чипов */
+.win-range{height:38px;display:flex;flex-direction:column;justify-content:center;gap:5px}
+.win-range .range-val{margin-top:0;font-size:10px}
+@media (max-width:1180px){
+  .ctrlbar{flex-wrap:wrap;gap:16px}
+  .ctrl-group:first-child{width:100%;max-width:420px}
+  .ctrl-win{flex:1 1 100%}
+}
+/* панель средних курсов */
+.avg-panel{margin-bottom:0;display:flex;flex-direction:column}
+.avg-seg{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:10px}
+.avg-scroll{max-height:264px;overflow-y:auto;margin:0 -4px;padding:0 4px}
+.avg-scroll thead th{position:sticky;top:0;background:var(--panel);z-index:1}
+#avgTable td.mut, #avgTable th.mut{color:var(--text-2)}
+#avgTable tr.total td{border-top:1px solid var(--line);font-weight:700;color:var(--text)}
+/* широкий экран: средние — отдельная третья колонка справа */
+@media (min-width:1401px){
+  .layout{grid-template-columns:minmax(0,1fr) 340px 300px}
+  .col-right{display:contents}
+  .col-right > .panel:first-child{grid-column:2;grid-row:1}   /* прогноз */
+  .col-right > .avg-panel{grid-column:3;grid-row:1 / span 2}  /* средние на всю высоту */
+  .col-right > .panel:last-child{grid-column:2;grid-row:2}    /* тренд */
+  .avg-scroll{max-height:none;flex:1;min-height:220px}
+}
 
 .badge{
   display:inline-flex;align-items:center;gap:8px;
@@ -455,7 +503,7 @@ tr:last-child td{border-bottom:none}
 
 /* ===== responsive ===== */
 @media (max-width:1180px){
-  .layout{grid-template-columns:260px minmax(0,1fr)}
+  .layout{grid-template-columns:minmax(0,1fr)}
   .col-right{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
   .col-right .panel{margin-bottom:0}
 }

@@ -69,48 +69,51 @@
 
 <main class="layout section act" id="sec-fx">
 
-  <!-- ===== left: controls ===== -->
-  <aside class="col col-left">
-    <section class="panel">
-      <h2>Валютная пара</h2>
-      <div class="pair-row">
-        <div class="field" style="margin-bottom:0">
-          <label for="baseSel">База</label>
-          <select id="baseSel" disabled><option>…</option></select>
-        </div>
-        <button class="swap" id="swapBtn" title="Поменять пару местами" aria-label="Поменять валюты местами">
-          <svg viewBox="0 0 14 14" fill="none"><path d="M2 5h9M8.5 2.5 11 5l-2.5 2.5M12 9H3M5.5 6.5 3 9l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </button>
-        <div class="field" style="margin-bottom:0">
-          <label for="quoteSel">Котировка</label>
-          <select id="quoteSel" disabled><option>…</option></select>
+  <!-- ===== center: stats + controls + chart + averages ===== -->
+  <section class="col col-center">
+    <div class="panel ctrlbar">
+      <div class="ctrl-group">
+        <label>Валютная пара</label>
+        <div class="pair-row">
+          <div class="field" style="margin-bottom:0">
+            <select id="baseSel" aria-label="Базовая валюта" disabled><option>…</option></select>
+          </div>
+          <button class="swap" id="swapBtn" title="Поменять пару местами" aria-label="Поменять валюты местами">
+            <svg viewBox="0 0 14 14" fill="none"><path d="M2 5h9M8.5 2.5 11 5l-2.5 2.5M12 9H3M5.5 6.5 3 9l2.5 2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="field" style="margin-bottom:0">
+            <select id="quoteSel" aria-label="Валюта котировки" disabled><option>…</option></select>
+          </div>
         </div>
       </div>
-    </section>
-
-    <section class="panel">
-      <h2>История</h2>
-      <div class="field">
-        <label id="winLabel">Окно анализа</label>
-        <div class="seg" role="group" aria-labelledby="winLabel" id="winSeg" style="grid-template-columns:repeat(5,1fr)">
+      <div class="ctrl-group ctrl-win">
+        <div class="win-head">
+          <label id="winLabel">Окно анализа</label>
+          <div class="win-mode" role="group" aria-label="Способ выбора окна" id="winMode">
+            <button data-mode="chips" aria-pressed="true" title="Пресеты: фиксированные окна" aria-label="Пресеты: фиксированные окна">
+              <svg viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="4.6" height="4.6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.9" y="1.5" width="4.6" height="4.6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="7.9" width="4.6" height="4.6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.9" y="7.9" width="4.6" height="4.6" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
+            </button>
+            <button data-mode="range" aria-pressed="false" title="Ползунок: любое окно от 1 мес. до MAX" aria-label="Ползунок: любое окно от 1 мес. до MAX">
+              <svg viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1.5 7h11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="7" r="2.4" fill="currentColor"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="seg" role="group" aria-labelledby="winLabel" id="winSeg">
           <button data-days="180" aria-pressed="false">6М</button>
           <button data-days="365" aria-pressed="true">1Г</button>
           <button data-days="730" aria-pressed="false">2Г</button>
           <button data-days="1825" aria-pressed="false">5Л</button>
           <button data-days="3650" aria-pressed="false">10Л</button>
+          <button data-days="99999" aria-pressed="false">MAX</button>
+        </div>
+        <div class="win-range" id="winRange" hidden>
+          <input type="range" id="winSlider" min="1" max="121" step="1" value="12" aria-label="Окно анализа в месяцах">
+          <div class="range-val"><span>1 мес.</span><b id="winVal">1 г.</b><span>MAX</span></div>
         </div>
       </div>
-      <div class="field" style="margin-bottom:0">
-        <label for="horizon">Горизонт прогноза</label>
-        <input type="range" id="horizon" min="3" max="60" step="1" value="14" aria-describedby="horizonVal">
-        <div class="range-val"><span>3 дн.</span><b id="horizonVal">14 дн.</b><span>60 дн.</span></div>
-      </div>
-    </section>
+    </div>
 
-  </aside>
-
-  <!-- ===== center: stats + chart ===== -->
-  <section class="col col-center">
+    
     <div class="stats" id="stats" aria-live="polite">
       <div class="stat"><div class="k" id="stLastK">Последний курс</div><div class="v" id="stLast">—</div></div>
       <div class="stat"><div class="k">Изм. за день</div><div class="v" id="stD1">—</div></div>
@@ -137,16 +140,37 @@
         <div class="state-msg" id="chartState"><div class="state-box"><div class="t skel">Загрузка курсов ЦБ РФ…</div><div class="pbar indet"><div class="pbar-fill"></div></div></div></div>
       </div>
     </div>
+
   </section>
 
-  <!-- ===== right: forecast table + long-term trend ===== -->
+  <!-- ===== right: forecast table + averages + long-term trend ===== -->
   <aside class="col col-right">
     <section class="panel">
       <h2 class="fc-head"><span>Прогноз по дням</span><span class="fc-sub" id="fcCount"></span></h2>
+      <div class="field fc-horizon">
+        <label for="horizon">Горизонт прогноза</label>
+        <input type="range" id="horizon" min="3" max="60" step="1" value="14" aria-describedby="horizonVal">
+        <div class="range-val"><span>3 дн.</span><b id="horizonVal">14 дн.</b><span>60 дн.</span></div>
+      </div>
       <div class="fc-scroll">
         <table id="fcTable">
           <thead><tr><th>Дата</th><th>Курс</th><th>Δ, %</th></tr></thead>
           <tbody id="fcBody"><tr><td colspan="3" class="d">—</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel avg-panel">
+      <h2>Средний курс за период <button class="info-btn" aria-label="Как считается среднее" aria-expanded="false">i<span class="info-tip" role="tooltip">Разбивка текущего окна анализа: среднее арифметическое официальных курсов ЦБ за рабочие дни периода — совпадает со статистикой ЦБ. «По календарю» — то же среднее, взвешенное по календарным дням действия курса (пятница ×3): подходит для потоков, равномерно распределённых по дням. Нижняя строка — итог за всё окно. Звёздочка (*) — период ещё не завершён: среднее посчитано по имеющимся на сегодня дням.</span></button></h2>
+      <div class="seg avg-seg" role="group" aria-label="Период усреднения" id="avgSeg">
+        <button data-avg="m" aria-pressed="true">Месяцы</button>
+        <button data-avg="q" aria-pressed="false">Кварталы</button>
+        <button data-avg="y" aria-pressed="false">Годы</button>
+      </div>
+      <div class="avg-scroll">
+        <table id="avgTable">
+          <thead><tr><th>Период</th><th>Раб. дн.</th><th>Календ.</th></tr></thead>
+          <tbody id="avgBody"><tr><td colspan="3" class="d">—</td></tr></tbody>
         </table>
       </div>
     </section>
