@@ -35,9 +35,11 @@ body::after{
 button,select,input{cursor:pointer;font-family:var(--mono)}
 
 /* thin themed scrollbar */
-::-webkit-scrollbar{width:6px;height:6px}
-::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:5px;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:#33507f}
 ::-webkit-scrollbar-track{background:transparent}
+*{scrollbar-width:thin;scrollbar-color:var(--border-strong) transparent}
 
 /* ===== header ===== */
 .hdr{
@@ -262,13 +264,15 @@ td.dn{color:var(--red)}
 tr:last-child td{border-bottom:none}
 /* прокрутка таблицы прогноза: все дни горизонта, шапка липнет */
 /* заголовок панели прогноза: название на первой строке, диапазон — на второй */
-.panel h2.fc-head{flex-direction:column;align-items:flex-start;gap:4px}
-.fc-sub{font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:none;color:var(--text-2)}
+/* диапазон прогноза — строка-итог блока «Горизонт прогноза» (заголовок «Прогноз по дням» убран) */
+.fc-range{margin-top:8px;font-size:10.5px;font-weight:600;letter-spacing:.06em;color:var(--text-2)}
 
 .fc-scroll{max-height:600px;overflow-y:auto;margin:0 -4px;padding:0 4px}
 .fc-scroll thead th{position:sticky;top:0;background:var(--panel);z-index:1}
-/* горизонт прогноза в панели прогноза */
-.fc-horizon{margin-bottom:12px}
+/* горизонт прогноза в панели прогноза (верхний контрол панели) */
+.fc-horizon{margin-bottom:14px}
+/* ползунок горизонта центрирован в строке 38px — на одной линии с чипами окна анализа */
+.fc-horizon input[type=range]{margin:17px 0}
 /* контрольная панель: пара + окно анализа над графиком — одна строка */
 .ctrlbar{display:flex;gap:28px;align-items:flex-end;justify-content:space-between;flex-wrap:nowrap}
 .ctrl-group label{display:block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px}
@@ -284,15 +288,16 @@ tr:last-child td{border-bottom:none}
 .win-mode{display:flex;gap:2px}
 .win-mode button{
   background:transparent;border:1px solid var(--border);color:var(--text-3);
-  padding:3px 8px;border-radius:2px;transition:all .15s ease;
+  padding:0;width:16px;height:16px;border-radius:2px;transition:all .15s ease; /* квадратные кнопки */
   display:inline-flex;align-items:center;justify-content:center;
 }
-.win-mode button svg{width:13px;height:13px;display:block}
+.win-mode button svg{width:12px;height:12px;display:block}
 .win-mode button:hover{color:var(--text);border-color:var(--border-strong)}
 .win-mode button[aria-pressed="true"]{color:var(--cyan);border-color:var(--cyan);background:rgba(34,211,238,.08)}
 #winSeg[hidden],#winRange[hidden]{display:none}
-/* ползунок окна анализа — та же высота, что и сетка чипов */
-.win-range{height:38px;display:flex;flex-direction:column;justify-content:center;gap:5px}
+/* ползунок окна анализа — та же высота, что и сетка чипов; бегунок на той же линии, что чипы */
+.win-range{height:38px;display:flex;flex-direction:column;justify-content:flex-start;gap:4px}
+.win-range input[type=range]{margin-top:17px}
 .win-range .range-val{margin-top:0;font-size:10px}
 @media (max-width:1180px){
   .ctrlbar{flex-wrap:wrap;gap:16px}
@@ -319,17 +324,22 @@ tr:last-child td{border-bottom:none}
   /* весь терминал в один экран: высота сетки = вьюпорт − шапка − тикер − статус-бар */
   .layout{grid-template-columns:minmax(0,1fr) 340px 300px;
     grid-template-rows:minmax(0,1fr) auto;
-    height:calc(100dvh - var(--hdrh,52px) - var(--tkh,34px) - var(--ftrh,40px) - 2px);
-    min-height:0}
-  .col-center{grid-row:1 / span 2;display:flex;flex-direction:column;min-height:0}
+    height:calc(100dvh - var(--hdrh,52px) - var(--tkh,34px) - var(--ftrh,40px));
+    min-height:0;
+    gap:14px;                 /* единая чёрная полоса 14px между всеми панелями */
+    background:transparent}   /* пустота под «Средними» — фон страницы, не серая заливка */
+  .col-center{grid-row:1 / span 2;display:flex;flex-direction:column;min-height:0;
+    padding:14px 0 14px 14px} /* справа 0: полоса график↔прогноз = тот же gap 14px */
   .chart-panel{flex:1;min-height:0;display:flex;flex-direction:column}
   .chart-wrap{flex:1;height:auto;min-height:220px}
   .chart-wrap canvas{position:absolute;inset:0}
   .col-right{display:contents}
-  .col-right > .panel:first-child{grid-column:2;grid-row:1;min-height:0;display:flex;flex-direction:column}  /* прогноз */
+  .col-right > .panel:first-child{grid-column:2;grid-row:1;min-height:0;display:flex;flex-direction:column;
+    margin:14px 0 0 0}                                                                                    /* прогноз */
   .col-right > .panel:first-child .fc-scroll{flex:1;min-height:60px;max-height:none}
-  .col-right > .avg-panel{grid-column:3;grid-row:1 / span 2;align-self:start;max-height:100%}            /* средние — по содержимому */
-  .col-right > .panel:last-child{grid-column:2;grid-row:2}                                               /* тренд */
+  .col-right > .avg-panel{grid-column:3;grid-row:1 / span 2;align-self:start;
+    margin:14px 14px 0 0;max-height:calc(100% - 28px)}                                                    /* средние — по содержимому */
+  .col-right > .panel:last-child{grid-column:2;grid-row:2;margin:0 0 14px 0}                              /* тренд: низ на линии графика */
   .avg-scroll{max-height:none;flex:0 1 auto;min-height:80px}
 }
 }

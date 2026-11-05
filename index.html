@@ -6,7 +6,7 @@
 <title>MacroPulse — FX Forecast Terminal</title>
 <meta name="description" content="MacroPulse · FX Forecast Terminal — официальные курсы ЦБ РФ, прогноз и долгосрочный тренд. Работает локально без серверов.">
 <link rel="stylesheet" href="./src/fonts.css">
-<link rel="stylesheet" href="./src/styles.css?v=20261105b">
+<link rel="stylesheet" href="./src/styles.css?v=20261105c">
 <script src="./src/vendor/chart.umd.min.js"></script>
 </head>
 <body>
@@ -146,11 +146,11 @@
   <!-- ===== right: forecast table + averages + long-term trend ===== -->
   <aside class="col col-right">
     <section class="panel">
-      <h2 class="fc-head"><span>Прогноз по дням</span><span class="fc-sub" id="fcCount"></span></h2>
       <div class="field fc-horizon">
         <label for="horizon">Горизонт прогноза</label>
         <input type="range" id="horizon" min="3" max="60" step="1" value="14" aria-describedby="horizonVal">
         <div class="range-val"><span>3 дн.</span><b id="horizonVal">14 дн.</b><span>60 дн.</span></div>
+        <div class="fc-range" id="fcCount"></div>
       </div>
       <div class="fc-scroll">
         <table id="fcTable">
@@ -364,6 +364,6 @@
 </aside>
 
 <script src="./fx-history.js"></script>
-<script src="./src/main.js?v=20261105b"></script></script>
+<script src="./src/main.js?v=20261105c"></script></script>
 </body>
 </html>
