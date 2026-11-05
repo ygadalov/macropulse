@@ -1117,6 +1117,8 @@
     if (h) document.documentElement.style.setProperty('--hdrh', h.offsetHeight + 'px');
     var tk = document.querySelector('.ticker');
     if (tk) document.documentElement.style.setProperty('--tkh', tk.offsetHeight + 'px');
+    var ft = document.querySelector('.ftr');
+    if (ft) document.documentElement.style.setProperty('--ftrh', ft.offsetHeight + 'px');
   }
   window.addEventListener('resize', syncHdrH);
   window.addEventListener('orientationchange', syncHdrH);
@@ -1152,36 +1154,48 @@
   });
   var dbSaveBtn = $('dbSave');
   if (dbSaveBtn) dbSaveBtn.addEventListener('click', saveDbFile);
-  /* тултип (i) «Локальной базы»: hover на десктопе, клик-переключение на таче */
+  /* тултипы (i): hover на десктопе, клик-переключение на таче; тост ведёт в настройки */
   (function () {
-    var btn = $('dbNoteBtn');
-    if (!btn) return;
-    var tip = $('dbNote');
-    if (tip) tip.addEventListener('click', function (e) { e.stopPropagation(); }); /* выделение текста не закрывает */
-    btn.addEventListener('click', function () {
-      var on = !btn.classList.contains('on');
-      btn.classList.toggle('on', on);
-      btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+    var btns = document.querySelectorAll('.info-btn');
+    Array.prototype.forEach.call(btns, function (btn) {
+      var tip = btn.querySelector('.info-tip');
+      if (tip) tip.addEventListener('click', function (e) { e.stopPropagation(); }); /* выделение текста не закрывает */
+      btn.addEventListener('click', function (e) {
+        e.preventDefault(); /* кнопка внутри label — не дёргать связанный контрол */
+        var on = !btn.classList.contains('on');
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+      });
     });
     document.addEventListener('click', function (e) {
-      if (!btn.contains(e.target)) { btn.classList.remove('on'); btn.setAttribute('aria-expanded', 'false'); }
+      Array.prototype.forEach.call(btns, function (btn) {
+        if (!btn.contains(e.target)) { btn.classList.remove('on'); btn.setAttribute('aria-expanded', 'false'); }
+      });
     });
+    var t = $('dbToast');
+    if (t) t.addEventListener('click', function () { t.classList.remove('show'); openSettings(); });
   })();
   /* возврат на вкладку — проверить свежесть, если автообновление включено */
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden && settings.autoMin > 0) refreshLatest();
   });
 
-  /* ---------- панель локальной базы + сохранение в файл ---------- */
+  /* ---------- локальная база (в настройках) + сохранение в файл ---------- */
+  var IS_LOCAL = location.protocol === 'file:';
+  var dbToastShown = false;
   function dirtyCount() { return Object.keys(DB.dirtyDays).length; }
   function updateDbPanel() {
     var info = $('dbInfo'), btn = $('dbSave'), badge = $('dbBadge');
-    if (!info) return;
-    var n = Object.keys(DB.cur).length;
-    info.textContent = n + ' валют · ' + fmtDateRU(DB.from) + ' — ' + fmtDateRU(DB.lastDate);
     var dirty = dirtyCount();
+    if (info) {
+      var n = Object.keys(DB.cur).length;
+      info.textContent = n + ' валют · ' + fmtDateRU(DB.from) + ' — ' + fmtDateRU(DB.lastDate);
+    }
     if (badge) {
-      if (dirty > 0) {
+      if (!IS_LOCAL) {
+        badge.textContent = 'обновляется автоматически';
+        badge.className = 'db-badge';
+      } else if (dirty > 0) {
         badge.textContent = '+' + dirty + ' дн. не сохранено';
         badge.className = 'db-badge dirty';
       } else {
@@ -1189,7 +1203,22 @@
         badge.className = 'db-badge';
       }
     }
-    if (btn) btn.disabled = dirty === 0;
+    if (btn) { btn.disabled = dirty === 0; btn.style.display = IS_LOCAL ? '' : 'none'; }
+    /* статус-бар: дата базы; в локальной версии — янтарная пометка о несохранённой дельте */
+    var fu = $('ftrUpdated');
+    if (fu && DB.lastDate) {
+      fu.textContent = 'База на ' + fmtDateRU(DB.lastDate) + (IS_LOCAL && dirty > 0 ? ' · +' + dirty + ' дн.' : '');
+      fu.classList.toggle('dirty', IS_LOCAL && dirty > 0);
+    }
+    /* тост один раз за сессию при первой несохранённой дельте */
+    if (IS_LOCAL && dirty > 0 && !dbToastShown) {
+      dbToastShown = true;
+      var t = $('dbToast');
+      if (t) {
+        t.classList.add('show');
+        setTimeout(function () { t.classList.remove('show'); }, 9000);
+      }
+    }
   }
   /* собрать экспортируемый объект базы: файл + дельта */
   function buildExport() {
@@ -1341,9 +1370,7 @@
       return;
     }
     buildCurrencies();
-    updateDbPanel();
-    var fu = $('ftrUpdated');
-    if (fu && DB.lastDate) fu.textContent = 'База на ' + fmtDateRU(DB.lastDate);
+    updateDbPanel(); /* в т.ч. пишет «База на …» в статус-бар */
     /* сеть при старте не нужна: список валют, тикер и график — из локальной базы */
     tickerFromDb();
     loadSeries();

@@ -107,12 +107,6 @@
       </div>
     </section>
 
-    <section class="panel" id="dbPanel">
-      <h2>Локальная база <button class="info-btn" id="dbNoteBtn" aria-label="Как это работает" aria-expanded="false">i<span class="info-tip" role="tooltip" id="dbNote">Новые курсы догружаются с зеркала ЦБ РФ при открытии и копятся в браузере. «Сохранить базу» записывает их в файл <b>fx-history.js</b>: в локальной копии — перезаписывает файл рядом с приложением (в Chrome/Edge напрямую, в остальных браузерах — через скачивание, замените старый файл скачанным). Онлайн-версия обновляет базу сама раз в сутки — там кнопка не требуется.</span></button></h2>
-      <div class="db-row"><span class="db-info" id="dbInfo">—</span><span class="db-badge" id="dbBadge">—</span></div>
-      <button class="db-save" id="dbSave" disabled>Сохранить базу</button>
-    </section>
-
   </aside>
 
   <!-- ===== center: stats + chart ===== -->
@@ -209,6 +203,8 @@
   <span>Не инвестиционная рекомендация</span>
 </footer>
 
+<div class="toast" id="dbToast" role="status">Новые курсы не сохранены в базу — нажмите, чтобы открыть настройки</div>
+
 <!-- ===== настройки (выдвижная панель) ===== -->
 <div class="drawer-backdrop" id="drawerBackdrop"></div>
 <aside class="drawer" id="settingsDrawer" aria-hidden="true" aria-label="Настройки">
@@ -222,7 +218,7 @@
 
   <div class="dsec" data-dsec="fx">
   <div class="field">
-    <label id="modelModeLabel">Параметры Холта</label>
+    <label id="modelModeLabel">Параметры Холта <button class="info-btn" aria-label="Пояснение к параметрам Холта" aria-expanded="false">i<span class="info-tip" role="tooltip">В режиме АВТО параметры подбираются сеткой под историю пары (слайдеры показывают значения по умолчанию). Ручной режим меняет только член Холта — ансамбль из трёх моделей сглаживает крайние значения.</span></button></label>
     <div class="seg" role="group" aria-labelledby="modelModeLabel" id="modelModeSeg" style="grid-template-columns:repeat(2,1fr)">
       <button data-mode="auto" aria-pressed="true">АВТО</button>
       <button data-mode="manual" aria-pressed="false">ВРУЧНУЮ</button>
@@ -244,11 +240,6 @@
         <b id="paPhiVal">0,95</b>
       </div>
     </div>
-    <p class="note" style="margin-top:8px">
-      В режиме АВТО параметры подбираются сеткой под историю пары (слайдеры показывают
-      значения по умолчанию). Ручной режим меняет только член Холта — ансамбль из трёх
-      моделей сглаживает крайние значения.
-    </p>
   </div>
   </div><!-- /dsec fx -->
 
@@ -258,7 +249,12 @@
 
   <div class="drawer-sec">Общие</div>
   <div class="field">
-    <label id="autoLabel">Автообновление данных</label>
+    <label>Локальная база <button class="info-btn" id="dbNoteBtn" aria-label="Как это работает" aria-expanded="false">i<span class="info-tip" role="tooltip" id="dbNote">Новые курсы догружаются с зеркала ЦБ РФ при открытии и копятся в браузере. «Сохранить базу» записывает их в файл <b>fx-history.js</b>: в локальной копии — перезаписывает файл рядом с приложением (в Chrome/Edge напрямую, в остальных браузерах — через скачивание, замените старый файл скачанным). Онлайн-версия обновляет базу сама раз в сутки — там кнопка не требуется.</span></button></label>
+    <div class="db-row"><span class="db-info" id="dbInfo">—</span><span class="db-badge" id="dbBadge">—</span></div>
+    <button class="db-save" id="dbSave" disabled>Сохранить базу</button>
+  </div>
+  <div class="field">
+    <label id="autoLabel">Автообновление данных <button class="info-btn" aria-label="Пояснение к автообновлению" aria-expanded="false">i<span class="info-tip" role="tooltip">Свежий снимок ЦБ подтягивается в фоне без перезагрузки страницы: обновляется лента, а когда ЦБ установит новый курс — догружается история и пересчитывается прогноз.</span></button></label>
     <div class="seg" role="group" aria-labelledby="autoLabel" id="autoSeg" style="grid-template-columns:repeat(5,1fr)">
       <button data-min="0" aria-pressed="true">ВЫКЛ</button>
       <button data-min="5">5М</button>
@@ -266,22 +262,13 @@
       <button data-min="30">30М</button>
       <button data-min="60">60М</button>
     </div>
-    <p class="note" style="margin-top:8px">
-      Свежий снимок ЦБ подтягивается в фоне без перезагрузки страницы: обновляется лента,
-      а когда ЦБ установит новый курс — догружается история и пересчитывается прогноз.
-    </p>
   </div>
   <div class="field" style="margin-bottom:0">
-    <label>Кэш резервного канала</label>
+    <label>Кэш резервного канала <button class="info-btn" aria-label="Пояснение к кэшу резервного канала" aria-expanded="false">i<span class="info-tip" role="tooltip">Подневные ответы зеркала, полученные при догрузке новых курсов. Хранится локально в этом браузере; на работу приложения очистка не влияет — основная история лежит в файле базы fx-history.js.</span></button></label>
     <div class="cache-row">
       <span class="note" id="cacheInfo">—</span>
       <button class="retry" id="cacheClear" style="margin-top:0">Очистить</button>
     </div>
-    <p class="note" style="margin-top:8px">
-      Подневные ответы зеркала, полученные при догрузке новых курсов. Хранится локально
-      в этом браузере; на работу приложения очистка не влияет — основная история лежит
-      в файле базы fx-history.js.
-    </p>
   </div>
 </aside>
 
@@ -322,7 +309,8 @@
     открывается мгновенно и полностью без сети. Если есть интернет, при открытии
     догружаются только новые дни с открытого JSON-зеркала курсов (cbr-xml-daily.ru)
     — обычно это 1–3 запроса. Новые данные копятся в браузере; кнопка
-    <b>«Сохранить базу»</b> слева перезаписывает fx-history.js уже с ними, чтобы база
+    <b>«Сохранить базу»</b> в настройках (шестерёнка справа вверху → «Локальная база»)
+    перезаписывает fx-history.js уже с ними, чтобы база
     жила в файле и переносилась вместе с папкой на любой ПК. Ключи и VPN не требуются.
     Прогноз носит статистический характер и <b>не является инвестиционной рекомендацией</b>.
   </p>
