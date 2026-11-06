@@ -22,7 +22,7 @@
   function fmt(v, forceDigits) {
     if (v == null || !isFinite(v)) return '—';
     var a = Math.abs(v);
-    var d = forceDigits != null ? forceDigits : (a >= 500 ? 2 : a >= 20 ? 3 : a >= 0.01 ? 4 : 6);
+    var d = forceDigits != null ? forceDigits : (a >= 500 ? 2 : a >= 0.01 ? 4 : 6); /* ЦБ публикует 4 знака — держим их везде */
     return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
   }
   function fmtPct(v, digits) {
@@ -416,7 +416,9 @@
   var RU_HOLIDAYS = { '01-01': 1, '01-02': 1, '01-03': 1, '01-04': 1, '01-05': 1, '01-06': 1, '01-07': 1, '01-08': 1, '02-23': 1, '03-08': 1, '05-01': 1, '05-09': 1, '06-12': 1, '11-04': 1 };
   function isCbrRateDay(d) {
     var w = d.getUTCDay();
-    if (w === 0 || w === 1 || w === 6) return false;
+    /* суббота — день установки: файл ЦБ, датированный субботой, несёт пятничную
+       установку (действует сб–пн); дублирующие вс/пн — пропускаем */
+    if (w === 0 || w === 1) return false;
     return !RU_HOLIDAYS[isoDay(d).slice(5)];
   }
 

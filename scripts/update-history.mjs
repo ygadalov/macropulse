@@ -9,12 +9,13 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const FILE = 'fx-history.js';
 const MIRROR = 'https://www.cbr-xml-daily.ru';
 
-/* Дни без установки курса ЦБ: выходные, понедельники, госпраздники РФ */
+/* Дни без установки курса ЦБ: воскресенье, понедельник, госпраздники РФ.
+   Суббота — день установки: файл, датированный субботой, несёт пятничную установку. */
 const RU_HOLIDAYS = { '01-01': 1, '01-02': 1, '01-03': 1, '01-04': 1, '01-05': 1, '01-06': 1, '01-07': 1, '01-08': 1, '02-23': 1, '03-08': 1, '05-01': 1, '05-09': 1, '06-12': 1, '11-04': 1 };
 const isoDay = d => d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
 function isRateDay(d) {
   const w = d.getUTCDay();
-  return w !== 0 && w !== 1 && w !== 6 && !RU_HOLIDAYS[isoDay(d).slice(5)];
+  return w !== 0 && w !== 1 && !RU_HOLIDAYS[isoDay(d).slice(5)];
 }
 
 async function fetchJSON(url, tries = 3) {
