@@ -265,14 +265,12 @@ tr:last-child td{border-bottom:none}
 /* прокрутка таблицы прогноза: все дни горизонта, шапка липнет */
 /* заголовок панели прогноза: название на первой строке, диапазон — на второй */
 /* диапазон прогноза — строка-итог блока «Горизонт прогноза» (заголовок «Прогноз по дням» убран) */
-.fc-range{margin-top:8px;font-size:10.5px;font-weight:600;letter-spacing:.06em;color:var(--text-2)}
+.fc-range{margin-top:10px;font-size:10.5px;font-weight:600;letter-spacing:.06em;color:var(--text-2)}
 
 .fc-scroll{max-height:600px;overflow-y:auto;margin:0 -4px;padding:0 4px}
 .fc-scroll thead th{position:sticky;top:0;background:var(--panel);z-index:1}
 /* горизонт прогноза в панели прогноза (верхний контрол панели) */
 .fc-horizon{margin-bottom:14px}
-/* ползунок горизонта центрирован в строке 38px — на одной линии с чипами окна анализа */
-.fc-horizon input[type=range]{margin:17px 0}
 /* контрольная панель: пара + окно анализа над графиком — одна строка */
 .ctrlbar{display:flex;gap:28px;align-items:flex-end;justify-content:space-between;flex-wrap:nowrap}
 .ctrl-group label{display:block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px}
@@ -282,23 +280,15 @@ tr:last-child td{border-bottom:none}
 /* единая высота контролов панели: селекты, своп, чипы окон */
 .ctrlbar select,.ctrlbar .swap,.ctrl-win .seg button{height:38px;padding-top:0;padding-bottom:0}
 .ctrlbar .seg button{display:flex;align-items:center;justify-content:center}
-/* шапка блока окна: подпись слева, переключатель режима справа */
+/* шапка блока окна: подпись */
 .win-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .win-head label{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-2);margin-bottom:0}
-.win-mode{display:flex;gap:2px}
-.win-mode button{
-  background:transparent;border:1px solid var(--border);color:var(--text-3);
-  padding:0;width:16px;height:16px;border-radius:2px;transition:all .15s ease; /* квадратные кнопки */
-  display:inline-flex;align-items:center;justify-content:center;
-}
-.win-mode button svg{width:12px;height:12px;display:block}
-.win-mode button:hover{color:var(--text);border-color:var(--border-strong)}
-.win-mode button[aria-pressed="true"]{color:var(--cyan);border-color:var(--cyan);background:rgba(34,211,238,.08)}
-#winSeg[hidden],#winRange[hidden]{display:none}
-/* ползунок окна анализа — та же высота, что и сетка чипов; бегунок на той же линии, что чипы */
-.win-range{height:38px;display:flex;flex-direction:column;justify-content:flex-start;gap:4px}
-.win-range input[type=range]{margin-top:17px}
-.win-range .range-val{margin-top:0;font-size:10px}
+#winSeg[hidden]{display:none}
+/* ползунок со шкалой (горизонт прогноза):
+   линия по центру строки 38px, подписи шкалы на фиксированном зазоре 8px под линией */
+.sliderbox{position:relative;height:38px}
+.sliderbox input[type=range]{margin:17px 0}
+.sliderbox .range-val{position:absolute;left:0;right:0;top:29px;margin-top:0;line-height:1.2}
 @media (max-width:1180px){
   .ctrlbar{flex-wrap:wrap;gap:16px}
   .ctrl-group:first-child{width:100%;max-width:420px}
@@ -308,14 +298,6 @@ tr:last-child td{border-bottom:none}
 .avg-panel{margin-bottom:0;display:flex;flex-direction:column}
 .avg-seg{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:10px}
 .avg-scroll{max-height:264px;overflow-y:auto;margin:0 -4px;padding:0 4px}
-.avg-foot{
-  margin-top:auto;padding-top:10px;border-top:1px solid var(--line);
-  display:flex;flex-direction:column;gap:6px;
-}
-.avg-foot .row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:12px}
-.avg-foot .k{color:var(--text-3);font-size:10px;letter-spacing:.12em;text-transform:uppercase}
-.avg-foot .v{font-variant-numeric:tabular-nums;color:var(--text);font-weight:600;white-space:nowrap}
-.avg-foot .v small{color:var(--text-3);font-weight:400;margin-left:6px}
 .avg-scroll thead th{position:sticky;top:0;background:var(--panel);z-index:1}
 #avgTable td.mut, #avgTable th.mut{color:var(--text-2)}
 #avgTable tr.total td{border-top:1px solid var(--line);font-weight:700;color:var(--text)}
@@ -342,7 +324,6 @@ tr:last-child td{border-bottom:none}
   .col-right > .panel:last-child{grid-column:2;grid-row:2;margin:0 0 14px 0}                              /* тренд: низ на линии графика */
   .avg-scroll{max-height:none;flex:0 1 auto;min-height:80px}
 }
-}
 
 .badge{
   display:inline-flex;align-items:center;gap:8px;
@@ -355,23 +336,22 @@ tr:last-child td{border-bottom:none}
 .badge.flat{color:var(--amber);border-color:rgba(251,191,36,.5)}
 
 .trend-rows{margin-top:12px}
-.trow{display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid rgba(26,37,64,.5);font-size:12px}
+.trow{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(26,37,64,.5);font-size:12px}
 .trow:last-child{border-bottom:none}
 .trow .k{color:var(--text-2);letter-spacing:.06em}
 .trow .v{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
 .trow .v.up{color:var(--mint)}
 .trow .v.dn{color:var(--red)}
 
-/* footer — фиксированный статус-бар внизу */
+/* footer — фиксированный статус-бар внизу: только дата базы */
 .ftr{
   position:fixed;left:0;right:0;bottom:0;z-index:30;
   background:var(--bg);
   border-top:1px solid var(--border);
-  padding:12px 20px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--text-3);display:flex;gap:20px;flex-wrap:wrap;
+  padding:12px 20px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  display:flex;justify-content:flex-end;
 }
-.ftr a{color:var(--text-2)}
-.ftr a:hover{color:var(--cyan)}
+.ftr #ftrUpdated{color:var(--text);font-weight:600}
 .ftr #ftrUpdated.dirty{color:var(--amber)}
 
 /* ===== settings drawer ===== */
@@ -527,7 +507,6 @@ tr:last-child td{border-bottom:none}
 }
 
 /* статус-бар */
-.ftr #ftrUpdated{margin-left:auto}
 
 /* ===== responsive ===== */
 @media (max-width:1180px){

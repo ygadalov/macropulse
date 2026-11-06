@@ -6,7 +6,7 @@
 <title>MacroPulse — FX Forecast Terminal</title>
 <meta name="description" content="MacroPulse · FX Forecast Terminal — официальные курсы ЦБ РФ, прогноз и долгосрочный тренд. Работает локально без серверов.">
 <link rel="stylesheet" href="./src/fonts.css">
-<link rel="stylesheet" href="./src/styles.css?v=20261105c">
+<link rel="stylesheet" href="./src/styles.css?v=20261106a">
 <script src="./src/vendor/chart.umd.min.js"></script>
 </head>
 <body>
@@ -89,14 +89,6 @@
       <div class="ctrl-group ctrl-win">
         <div class="win-head">
           <label id="winLabel">Окно анализа</label>
-          <div class="win-mode" role="group" aria-label="Способ выбора окна" id="winMode">
-            <button data-mode="chips" aria-pressed="true" title="Пресеты: фиксированные окна" aria-label="Пресеты: фиксированные окна">
-              <svg viewBox="0 0 14 14" fill="none" aria-hidden="true"><rect x="1.5" y="1.5" width="4.6" height="4.6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.9" y="1.5" width="4.6" height="4.6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="1.5" y="7.9" width="4.6" height="4.6" rx="1" stroke="currentColor" stroke-width="1.3"/><rect x="7.9" y="7.9" width="4.6" height="4.6" rx="1" stroke="currentColor" stroke-width="1.3"/></svg>
-            </button>
-            <button data-mode="range" aria-pressed="false" title="Ползунок: любое окно от 1 мес. до MAX" aria-label="Ползунок: любое окно от 1 мес. до MAX">
-              <svg viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M1.5 7h11" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="7" cy="7" r="2.4" fill="currentColor"/></svg>
-            </button>
-          </div>
         </div>
         <div class="seg" role="group" aria-labelledby="winLabel" id="winSeg">
           <button data-days="180" aria-pressed="false">6М</button>
@@ -105,10 +97,6 @@
           <button data-days="1825" aria-pressed="false">5Л</button>
           <button data-days="3650" aria-pressed="false">10Л</button>
           <button data-days="99999" aria-pressed="false">MAX</button>
-        </div>
-        <div class="win-range" id="winRange" hidden>
-          <input type="range" id="winSlider" min="1" max="121" step="1" value="12" aria-label="Окно анализа в месяцах">
-          <div class="range-val"><span>1 мес.</span><b id="winVal">1 г.</b><span>MAX</span></div>
         </div>
       </div>
     </div>
@@ -148,8 +136,10 @@
     <section class="panel">
       <div class="field fc-horizon">
         <label for="horizon">Горизонт прогноза</label>
-        <input type="range" id="horizon" min="3" max="60" step="1" value="14" aria-describedby="horizonVal">
-        <div class="range-val"><span>3 дн.</span><b id="horizonVal">14 дн.</b><span>60 дн.</span></div>
+        <div class="sliderbox">
+          <input type="range" id="horizon" min="3" max="60" step="1" value="14" aria-describedby="horizonVal">
+          <div class="range-val"><span>3 дн.</span><b id="horizonVal">14 дн.</b><span>60 дн.</span></div>
+        </div>
         <div class="fc-range" id="fcCount"></div>
       </div>
       <div class="fc-scroll">
@@ -163,9 +153,9 @@
     <section class="panel avg-panel">
       <h2>Средний курс за период <button class="info-btn" aria-label="Как считается среднее" aria-expanded="false">i<span class="info-tip" role="tooltip">Разбивка текущего окна анализа: среднее арифметическое официальных курсов ЦБ за рабочие дни периода — совпадает со статистикой ЦБ. «По календарю» — то же среднее, взвешенное по календарным дням действия курса (пятница ×3): подходит для потоков, равномерно распределённых по дням. Нижняя строка — итог за всё окно. Звёздочка (*) — период ещё не завершён: среднее посчитано по имеющимся на сегодня дням.</span></button></h2>
       <div class="seg avg-seg" role="group" aria-label="Период усреднения" id="avgSeg">
-        <button data-avg="m" aria-pressed="true">Месяцы</button>
-        <button data-avg="q" aria-pressed="false">Кварталы</button>
-        <button data-avg="y" aria-pressed="false">Годы</button>
+        <button data-avg="m" aria-pressed="true">Месяц</button>
+        <button data-avg="q" aria-pressed="false">Квартал</button>
+        <button data-avg="y" aria-pressed="false">Год</button>
       </div>
       <div class="avg-scroll">
         <table id="avgTable">
@@ -173,7 +163,6 @@
           <tbody id="avgBody"><tr><td colspan="3" class="d">—</td></tr></tbody>
         </table>
       </div>
-      <div class="avg-foot" id="avgFoot"></div>
     </section>
 
     <section class="panel">
@@ -222,10 +211,7 @@
 </div><!-- /shell -->
 
 <footer class="ftr">
-  <span>MacroPulse · Macroeconomic Terminal</span>
-  <span id="ftrSource">Данные: официальные курсы ЦБ РФ (cbr.ru) · локальная база fx-history.js</span>
-  <span id="ftrUpdated"></span>
-  <span>Не инвестиционная рекомендация</span>
+  <span id="ftrUpdated">База на …</span>
 </footer>
 
 <div class="toast" id="dbToast" role="status">Новые курсы не сохранены в базу — нажмите, чтобы открыть настройки</div>
@@ -364,6 +350,6 @@
 </aside>
 
 <script src="./fx-history.js"></script>
-<script src="./src/main.js?v=20261105c"></script></script>
+<script src="./src/main.js?v=20261106a"></script></script>
 </body>
 </html>

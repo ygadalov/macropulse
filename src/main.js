@@ -945,19 +945,6 @@
         (nB ? fmt(totB / nB) : '—') + '</td><td class="mut">' + fmt(totC / nC) + '</td></tr>';
     }
     body.innerHTML = html;
-    /* мин/макс окна (по дням фактических установок) */
-    var foot = $('avgFoot');
-    if (foot) {
-      var mn = null, mx = null;
-      lastRows.forEach(function (r) {
-        if (!isSetDay(r.d)) return;
-        if (!mn || r.v < mn.v) mn = r;
-        if (!mx || r.v > mx.v) mx = r;
-      });
-      foot.innerHTML = (mn && mx) ?
-        '<div class="row"><span class="k">Минимум окна</span><span class="v">' + fmt(mn.v) + '<small>' + fmtDateShort(mn.d) + '</small></span></div>' +
-        '<div class="row"><span class="k">Максимум окна</span><span class="v">' + fmt(mx.v) + '<small>' + fmtDateShort(mx.d) + '</small></span></div>' : '';
-    }
   }
   $('avgSeg').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
@@ -1026,8 +1013,6 @@
     if (seg) seg.querySelectorAll('button').forEach(function (b) {
       b.setAttribute('aria-pressed', String(parseInt(b.dataset.days, 10) === settings.winDays));
     });
-    setWinMode(settings.winMode || 'chips');
-    winSliderSync();
   }
   $('winSeg').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
@@ -1039,50 +1024,7 @@
     settingsSave();
     loadSeries();
   });
-  /* режим выбора окна: пресеты-чипы или свободный ползунок (месяцы + MAX) */
-  var winSliderTimer = null;
-  function winMaxMonths() { /* полных месяцев базы + крайняя позиция MAX */
-    var d0 = new Date(DB.from + 'T12:00:00Z'), d1 = new Date();
-    return (d1.getUTCFullYear() - d0.getUTCFullYear()) * 12 + (d1.getUTCMonth() - d0.getUTCMonth()) + 1;
-  }
-  function monthsToDays(m) { return Math.round(m * 365.25 / 12); }
-  function daysToMonths(d) { return Math.round(d * 12 / 365.25); }
-  function winSliderSync() {
-    var sl = $('winSlider'); if (!sl || !DB || !DB.from) return;
-    sl.max = winMaxMonths();
-    sl.value = state.windowDays >= 99999 ? sl.max : Math.max(1, Math.min(+sl.max - 1, daysToMonths(state.windowDays)));
-    var b = $('winVal');
-    b.textContent = +sl.value === +sl.max ? 'MAX (вся база)' : fmtWindow(+sl.value / 12);
-    sl.style.setProperty('--fill', ((sl.value - sl.min) / (sl.max - sl.min) * 100) + '%');
-  }
-  function setWinMode(mode) {
-    settings.winMode = mode; settingsSave();
-    $('winMode').querySelectorAll('button').forEach(function (b) {
-      b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
-    });
-    $('winSeg').hidden = mode !== 'chips';
-    $('winRange').hidden = mode !== 'range';
-    if (mode === 'range') winSliderSync();
-  }
-  $('winMode').addEventListener('click', function (e) {
-    var btn = e.target.closest('button');
-    if (btn) setWinMode(btn.dataset.mode);
-  });
-  $('winSlider').addEventListener('input', function () {
-    var m = +this.value, isMax = m === +this.max;
-    $('winVal').textContent = isMax ? 'MAX (вся база)' : fmtWindow(m / 12);
-    this.style.setProperty('--fill', ((m - this.min) / (this.max - this.min) * 100) + '%');
-    /* подсветка чипа, если значение совпало с пресетом */
-    var days = isMax ? 99999 : monthsToDays(m);
-    $('winSeg').querySelectorAll('button').forEach(function (b) {
-      b.setAttribute('aria-pressed', String(parseInt(b.dataset.days, 10) === days));
-    });
-    clearTimeout(winSliderTimer);
-    winSliderTimer = setTimeout(function () {
-      state.windowDays = days; settings.winDays = days; settingsSave();
-      loadSeries();
-    }, 250);
-  });
+  /* окно анализа выбирается только пресетами-чипами (режим ползунка убран) */
   var horizonTimer = null;
   $('horizon').addEventListener('input', function () {
     state.horizon = parseInt(this.value, 10);
@@ -1097,7 +1039,7 @@
   $('horizon').style.setProperty('--fill', ((14 - 3) / 57 * 100) + '%');
 
   /* ---------- настройки (выдвижная панель) ---------- */
-  var settings = { autoMin: 0, modelMode: 'auto', holt: { alpha: 0.6, beta: 0.1, phi: 0.95 }, winDays: 180, winMode: 'chips' };
+  var settings = { autoMin: 0, modelMode: 'auto', holt: { alpha: 0.6, beta: 0.1, phi: 0.95 }, winDays: 180 };
   var lastSeriesEnd = null; /* последняя дата установки в загруженном ряде */
   var autoTimer = null;
 
@@ -1108,7 +1050,6 @@
       if (typeof s.autoMin === 'number') settings.autoMin = s.autoMin;
       if (s.modelMode === 'manual') settings.modelMode = 'manual';
       if (typeof s.winDays === 'number' && s.winDays >= 30 && s.winDays <= 100000) settings.winDays = s.winDays;
-      if (s.winMode === 'chips' || s.winMode === 'range') settings.winMode = s.winMode;
       if (s.holt) {
         ['alpha', 'beta', 'phi'].forEach(function (k) {
           if (typeof s.holt[k] === 'number') settings.holt[k] = s.holt[k];
