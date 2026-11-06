@@ -347,9 +347,10 @@ tr:last-child td{border-bottom:none}
   .col-right > .panel:first-child{grid-column:2 / span 2;grid-row:1;min-height:0;display:flex;flex-direction:column;
     margin:14px 14px 0 0}                                                                                 /* прогноз: на всю ширину правой части */
   .col-right > .panel:first-child .fc-scroll{flex:1;min-height:60px;max-height:none}
-  .col-right > .avg-panel{grid-column:2;grid-row:2;min-height:0;
-    margin:0 0 14px 0}                                                                                    /* средние: низ второй колонки */
-  .col-right > .panel:last-child{grid-column:3;grid-row:2;margin:0 14px 14px 0}                           /* тренд: низ третьей колонки */
+  .col-right > .avg-panel{grid-column:2;grid-row:2;min-height:0;max-height:420px;
+    margin:0 0 14px 0}                                                                                    /* средние: низ второй колонки, длинный список — внутренний скролл */
+  .col-right > .panel:last-child{grid-column:3;grid-row:2;min-height:0;max-height:420px;overflow-y:auto;
+    margin:0 14px 14px 0}                                                                                 /* тренд: низ третьей колонки, тот же потолок — низы панелей совпадают */
   .avg-scroll{max-height:none;flex:1;min-height:0}  /* растягиваем панель средних на всю строку сетки */
 }
 
