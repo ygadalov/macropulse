@@ -197,6 +197,7 @@
     var tg = $('railToggle');
     tg.textContent = st === 'mini' ? '›' : '‹';
     tg.title = st === 'mini' ? 'Развернуть панель разделов' : 'Свернуть панель разделов';
+    tg.setAttribute('aria-label', tg.title);
     if (save) { try { localStorage.setItem(RAIL_KEY, st); } catch (e) { /* noop */ } }
   }
   function railVisibleToggle() { applyRail(railCur === 'off' ? railLastVis : 'off', true); }

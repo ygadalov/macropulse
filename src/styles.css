@@ -82,6 +82,8 @@ button,select,input{cursor:pointer;font-family:var(--mono)}
 
 /* ===== ticker ===== */
 .ticker{
+  /* поверх рельса (z-20): лента идёт на всю ширину окна и закрывает пустую зону рельса под шапкой */
+  position:relative;z-index:21;
   overflow:hidden;border-bottom:1px solid var(--border);
   background:var(--panel);
   white-space:nowrap;
@@ -437,7 +439,12 @@ tr:last-child td{border-bottom:none}
   color:var(--amber);border:1px solid rgba(251,191,36,.4);border-radius:3px;
   padding:1px 4px;line-height:1.4;
 }
-.rail-foot{display:flex;justify-content:flex-end;margin-bottom:6px}
+.rail-foot{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+/* заголовок рельса — в стиле подписей контролов */
+.rail-title{
+  font-size:10px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--text-2);padding-left:2px;white-space:nowrap;
+}
 .rtoggle{
   display:grid;place-items:center;width:26px;height:26px;padding:0;
   background:transparent;border:1px solid var(--border-strong);border-radius:2px;
@@ -460,7 +467,9 @@ tr:last-child td{border-bottom:none}
 }
 .rail.mini .ritem:hover::after{opacity:1}
 .rail.mini .rail-foot{justify-content:center}
-.rail.mini .rtoggle{transform:scaleX(-1)} /* chevron flip » */
+/* в mini заголовок прячем; направление шеврона задаёт JS (textContent ‹/›) — scaleX-флип убран,
+   иначе он зеркалил подставленный JS-ом «›» обратно в «‹» и кнопка всегда смотрела влево */
+.rail.mini .rail-title{display:none}
 
 /* --- заглушки будущих разделов --- */
 .stub-sec{
