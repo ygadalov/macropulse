@@ -300,6 +300,30 @@ tr:last-child td{border-bottom:none}
 }
 /* панель средних курсов */
 .avg-panel{margin-bottom:0;display:flex;flex-direction:column}
+/* таблица прогноза: значения не переносим; границы полосы — приглушённый янтарь
+   (цвет 90%-интервала на графике), чтобы не сливались с серыми датами */
+#fcTable th,#fcTable td{white-space:nowrap}
+#fcTable td.bnd{color:color-mix(in srgb, var(--amber) 62%, var(--text-2))}
+/* заголовки таблицы: полные только на широком экране, где панель на две колонки;
+   в узкой боковой колонке (≤1400) и на телефоне — сокращённые, иначе таблица не влезает */
+#fcTable th .ts{display:none}
+@media (max-width:1400px){
+  #fcTable th .tf{display:none}
+  #fcTable th .ts{display:inline}
+  /* в узкой боковой колонке ужимаем отступы ячеек, чтобы пять колонок не давали скролл */
+  #fcTable th,#fcTable td{padding-left:3px;padding-right:3px}
+}
+/* деления ползунка горизонта (3/14/30/45/60): засечки на шкале + подписи, выровненные по позиции;
+   на узких экранах промежуточные подписи и засечки скрываем — остаются только 3 и 60 */
+.sliderbox .tick{position:absolute;top:15px;width:1px;height:8px;background:var(--border-strong);pointer-events:none}
+.fc-horizon .range-val{height:12px}
+.fc-horizon .range-val span{position:absolute;left:0}
+.fc-horizon .range-val .tk-pos{transform:translateX(-50%);color:var(--text-3);font-size:10px}
+.fc-horizon .range-val .tk-r{left:auto;right:0}
+.fc-horizon label b{color:var(--cyan);font-weight:700}
+@media (max-width:1180px){
+  .sliderbox .tick,.fc-horizon .range-val .tk-pos{display:none}
+}
 .avg-seg{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:10px}
 .avg-scroll{max-height:264px;overflow-y:auto;margin:0 -4px;padding:0 4px}
 .avg-scroll thead th{position:sticky;top:0;background:var(--panel);z-index:1}
@@ -320,13 +344,13 @@ tr:last-child td{border-bottom:none}
   .chart-wrap{flex:1;height:auto;min-height:220px}
   .chart-wrap canvas{position:absolute;inset:0}
   .col-right{display:contents}
-  .col-right > .panel:first-child{grid-column:2;grid-row:1;min-height:0;display:flex;flex-direction:column;
-    margin:14px 0 0 0}                                                                                    /* прогноз */
+  .col-right > .panel:first-child{grid-column:2 / span 2;grid-row:1;min-height:0;display:flex;flex-direction:column;
+    margin:14px 14px 0 0}                                                                                 /* прогноз: на всю ширину правой части */
   .col-right > .panel:first-child .fc-scroll{flex:1;min-height:60px;max-height:none}
-  .col-right > .avg-panel{grid-column:3;grid-row:1 / span 2;align-self:start;
-    margin:14px 14px 0 0;max-height:calc(100% - 28px)}                                                    /* средние — по содержимому */
-  .col-right > .panel:last-child{grid-column:2;grid-row:2;margin:0 0 14px 0}                              /* тренд: низ на линии графика */
-  .avg-scroll{max-height:none;flex:0 1 auto;min-height:80px}
+  .col-right > .avg-panel{grid-column:2;grid-row:2;min-height:0;
+    margin:0 0 14px 0}                                                                                    /* средние: низ второй колонки */
+  .col-right > .panel:last-child{grid-column:3;grid-row:2;margin:0 14px 14px 0}                           /* тренд: низ третьей колонки */
+  .avg-scroll{max-height:none;flex:1;min-height:0}  /* растягиваем панель средних на всю строку сетки */
 }
 
 .badge{

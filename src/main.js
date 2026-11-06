@@ -752,7 +752,7 @@
     renderHead(last, d1);
     renderPeriod(dates, fcDates, n);
     renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n);
-    renderForecastTable(fcDates, fcVals, last);
+    renderForecastTable(fcDates, fcVals, bandLo, bandHi, last);
     renderTrend(driftYear, reg.r2, vol, fcVals, values, dates);
     renderAvg();
     renderModelParams(ens);
@@ -886,20 +886,25 @@
     chart = new Chart($('fxChart').getContext('2d'), cfg);
   }
 
-  /* ---------- таблица прогноза ---------- */
-  function renderForecastTable(fcDates, fcVals, last) {
+  /* ---------- таблица прогноза: база + границы полосы 90 % на каждый день ---------- */
+  function renderForecastTable(fcDates, fcVals, bandLo, bandHi, last) {
     /* все дни прогноза (до 60) — скролл в панели; иначе при смене горизонта
        первые 15 строк одинаковы и кажется, что таблица не реагирует */
     var html = '';
     var prev = last;
     for (var i = 0; i < fcDates.length; i++) {
       var d = fcVals[i] / prev - 1;
-      html += '<tr><td class="d">' + fmtDateRU(fcDates[i]) + '</td><td>' + fmt(fcVals[i]) + '</td>' +
+      html += '<tr><td class="d">' + fmtDateRU(fcDates[i]) + '</td>' +
+        '<td class="bnd">' + fmt(bandLo[i]) + '</td><td>' + fmt(fcVals[i]) + '</td>' +
+        '<td class="bnd">' + fmt(bandHi[i]) + '</td>' +
         '<td class="' + clsOf(d) + '">' + fmtPct(d, 2) + '</td></tr>';
       prev = fcVals[i];
     }
     $('fcBody').innerHTML = html;
-    $('fcCount').textContent = fmtDateShort(fcDates[0]) + ' — ' + fmtDateShort(fcDates[fcDates.length - 1]) + ' (' + fcDates.length + ' раб. дн.)';
+    var lastFc = fcDates.length - 1;
+    $('fcCount').textContent = fmtDateShort(fcDates[0]) + ' — ' + fmtDateShort(fcDates[lastFc]) +
+      ' (' + fcDates.length + ' раб. дн.) · на ' + fmtDateShort(fcDates[lastFc]) + ': ' +
+      fmt(bandLo[lastFc]) + ' – ' + fmt(bandHi[lastFc]);
   }
 
 

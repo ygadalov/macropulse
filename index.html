@@ -6,7 +6,7 @@
 <title>MacroPulse — FX Forecast Terminal</title>
 <meta name="description" content="MacroPulse · FX Forecast Terminal — официальные курсы ЦБ РФ, прогноз и долгосрочный тренд. Работает локально без серверов.">
 <link rel="stylesheet" href="./src/fonts.css">
-<link rel="stylesheet" href="./src/styles.css?v=20261106c">
+<link rel="stylesheet" href="./src/styles.css?v=20261106d">
 <script src="./src/vendor/chart.umd.min.js"></script>
 </head>
 <body>
@@ -136,17 +136,18 @@
   <aside class="col col-right">
     <section class="panel">
       <div class="field fc-horizon">
-        <label for="horizon">Горизонт прогноза</label>
+        <label for="horizon"><span>Горизонт прогноза — <b id="horizonVal">14 дн.</b></span> <button class="info-btn" aria-label="Как читать прогноз" aria-expanded="false">i<span class="info-tip" role="tooltip">«Базовый» — медианный (наиболее вероятный) курс ансамбля на каждый день. «Нижний» и «Верхний» — границы полосы 90 %: факт остаётся внутри них с вероятностью около 90 %. Для планирования расходов в валюте закладывайте верхнюю границу (курс «с запасом»), валютных доходов — нижнюю. Разница между верхней границей и базовым курсом — цена неопределённости на срок.</span></button></label>
         <div class="sliderbox">
           <input type="range" id="horizon" min="3" max="60" step="1" value="14" aria-describedby="horizonVal">
-          <div class="range-val"><span>3 дн.</span><b id="horizonVal">14 дн.</b><span>60 дн.</span></div>
+          <i class="tick" style="left:19.3%"></i><i class="tick" style="left:47.4%"></i><i class="tick" style="left:73.7%"></i>
+          <div class="range-val"><span>3 дн.</span><span class="tk-pos" style="left:19.3%">14 дн.</span><span class="tk-pos" style="left:47.4%">30 дн.</span><span class="tk-pos" style="left:73.7%">45 дн.</span><span class="tk-r">60 дн.</span></div>
         </div>
         <div class="fc-range" id="fcCount"></div>
       </div>
       <div class="fc-scroll">
         <table id="fcTable">
-          <thead><tr><th>Дата</th><th>Курс</th><th>Δ, %</th></tr></thead>
-          <tbody id="fcBody"><tr><td colspan="3" class="d">—</td></tr></tbody>
+          <thead><tr><th>Дата</th><th><span class="tf">Нижний</span><span class="ts">Нижн.</span></th><th><span class="tf">Базовый</span><span class="ts">Баз.</span></th><th><span class="tf">Верхний</span><span class="ts">Верхн.</span></th><th>Δ, %</th></tr></thead>
+          <tbody id="fcBody"><tr><td colspan="5" class="d">—</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -351,6 +352,6 @@
 </aside>
 
 <script src="./fx-history.js"></script>
-<script src="./src/main.js?v=20261106c"></script></script>
+<script src="./src/main.js?v=20261106d"></script></script>
 </body>
 </html>
