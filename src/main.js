@@ -55,6 +55,10 @@
     }
     function done() { if (to) clearTimeout(to); }
     return fetch(url, opts).then(function (r) {
+      /* 404 = «файла этого дня нет в архиве» (выходной/праздник/будущий день):
+         это нормальный ответ при посуточном пробе архива, а не ошибка —
+         возвращаем null, не сжигая повторные попытки и резервный JSONP-канал */
+      if (r.status === 404) return null;
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
     }).then(function (j) { done(); return j; }, function (e) { done(); throw e; });
@@ -357,7 +361,7 @@
     return { a: a, b: b, r2: ssTot > 0 ? 1 - ssRes / ssTot : 0 };
   }
 
-  /* даты прогноза: будущие дни установки курса ЦБ РФ (вт–пт, без госпраздников) */
+  /* даты прогноза: будущие дни установки курса ЦБ РФ (вт–сб, без госпраздников) */
   function nextCbrDays(lastISO, count) {
     var d = new Date(lastISO + 'T12:00:00Z');
     var out = [];
@@ -411,8 +415,10 @@
     } catch (e) { /* noop */ }
   }
 
-  /* Дни, когда ЦБ РФ курс не устанавливает: выходные, понедельники (пятничный курс
-     действует сб–пн) и фиксированные госпраздники РФ. Их не запрашиваем вовсе. */
+  /* Дни, когда ЦБ РФ курс не устанавливает: воскресенье, понедельник (пятничный курс
+     действует сб–пн) и фиксированные госпраздники РФ. Используется только для дат
+     прогноза (nextCbrDays); историю догружаем пробой всех календарных дней —
+     архив сам является календарём. */
   var RU_HOLIDAYS = { '01-01': 1, '01-02': 1, '01-03': 1, '01-04': 1, '01-05': 1, '01-06': 1, '01-07': 1, '01-08': 1, '02-23': 1, '03-08': 1, '05-01': 1, '05-09': 1, '06-12': 1, '11-04': 1 };
   function isCbrRateDay(d) {
     var w = d.getUTCDay();
@@ -522,8 +528,12 @@
     var d = new Date(DB.lastDate + 'T12:00:00Z');
     var endD = new Date(endISO + 'T12:00:00Z');
     d = new Date(d.getTime() + 864e5);
+    /* пробуем КАЖДЫЙ календарный день без календарного фильтра: архив ЦБ сам
+       является календарём — 404 означает «установки не было» (выходные, праздники,
+       воскресенья после рабочих суббот, будущие переносы выходных). Так база
+       остаётся полной без хрупких захардкоженных правил */
     while (d <= endD) {
-      if (isCbrRateDay(d)) out.push(isoDay(d));
+      out.push(isoDay(d));
       d = new Date(d.getTime() + 864e5);
     }
     return out;
@@ -578,7 +588,7 @@
           (function tryFetch(attempt) {
             fetchJSON(url).then(function (data) {
               var dict = null;
-              if (data.Valute) {
+              if (data && data.Valute) {
                 dict = {};
                 Object.keys(data.Valute).forEach(function (cc) {
                   var r = data.Valute[cc];
@@ -622,7 +632,7 @@
         }
         return jsonpFetch(url).then(function (data) {
           var dict = null;
-          if (data.Valute) {
+          if (data && data.Valute) {
             dict = {};
             Object.keys(data.Valute).forEach(function (cc) {
               var r = data.Valute[cc];
@@ -676,6 +686,9 @@
     setLed('', 'LOADING');
 
     var end = new Date();
+    /* T+1: вечером после установки ЦБ (~15:00 МСК) в базе уже есть завтрашняя
+       дата — график достраиваем до неё (хвост рисуется пунктиром, метка T+1) */
+    if (DB.lastDate && DB.lastDate > isoDay(end)) end = new Date(DB.lastDate + 'T12:00:00Z');
     var start = new Date(end.getTime() - state.windowDays * 864e5);
     var fromD = new Date(DB.from + 'T12:00:00Z'); /* MAX: не раньше начала базы */
     if (start < fromD) start = fromD;
@@ -776,7 +789,19 @@
 
   function renderStats(last, d1, d30, vol, driftYear, lastDate) {
     var k = $('stLastK');
-    if (k) k.textContent = 'Курс на ' + fmtDateRU(lastDate);
+    if (k) {
+      if (lastDate > isoDay(new Date())) {
+        /* T+1: курс уже установлен ЦБ, но вступит в силу завтра — помечаем;
+           подпись и бейдж — одной flex-строкой, значение не съезжает вниз */
+        k.classList.add('t1');
+        k.innerHTML = '<span>Курс на ' + fmtDateRU(lastDate) + '</span><span class="t1-badge" tabindex="0">T+1' +
+          '<span class="info-tip" role="tooltip">Установлено ЦБ сегодня (~15:00 МСК), действует с ' +
+          fmtDateRU(lastDate) + ' до следующей установки.</span></span>';
+      } else {
+        k.classList.remove('t1');
+        k.textContent = 'Курс на ' + fmtDateRU(lastDate);
+      }
+    }
     $('stLast').textContent = fmt(last);
     $('stLast').className = 'v';
     var e1 = $('stD1'); e1.textContent = fmtPct(d1); e1.className = 'v ' + clsOf(d1);
@@ -803,24 +828,49 @@
   }
 
   /* ---------- график ---------- */
+  /* прогноз только на дни установки (вт–сб); для отображения добавляем вс/пн
+     плоскими дублями субботы — снимает вопрос «а что в воскресенье» */
+  function expandFcWeekend(fcD, vals) {
+    var D = [], V = [];
+    for (var i = 0; i < fcD.length; i++) {
+      D.push(fcD[i]); V.push(vals[i]);
+      var d0 = new Date(fcD[i] + 'T12:00:00Z');
+      if (d0.getUTCDay() === 6) {
+        D.push(isoDay(new Date(d0.getTime() + 864e5))); V.push(vals[i]);      /* вс */
+        D.push(isoDay(new Date(d0.getTime() + 2 * 864e5))); V.push(vals[i]);  /* пн */
+      }
+    }
+    return { d: D, v: V };
+  }
+
   function renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n) {
+    var todayISO = isoDay(new Date());
     /* прореживание истории для отрисовки: на слабом CPU тысяча точек × 5 рядов — секунды;
-       даты/значения/тренд режем одним шагом, прогноз (≤60 точек) не трогаем */
+       даты/значения/тренд режем одним шагом, прогноз не трогаем. Точки T+1-хвоста
+       (даты позже сегодняшней) и точку перед хвостом всегда сохраняем */
     var s = Math.max(1, Math.ceil(n / 420));
     var hDates = [], hVals = [], trendHist = [];
     for (var i = 0; i < n; i++) {
       var tv = Math.exp(reg.a + reg.b * i);
-      if (i % s === 0 || i === n - 1) { hDates.push(dates[i]); hVals.push(values[i]); trendHist.push(tv); }
+      var keep = (i % s === 0) || i === n - 1 ||
+        dates[i] >= todayISO ||
+        (i + 1 < n && dates[i] < todayISO && dates[i + 1] >= todayISO);
+      if (keep) { hDates.push(dates[i]); hVals.push(values[i]); trendHist.push(tv); }
     }
     var m = hVals.length;
-    var labels = hDates.concat(fcDates);
-    var histData = hVals.concat(new Array(fcDates.length).fill(null));
+    /* вс/пн-дубли субботы в прогнозе (отображение; модель и горизонт не меняются) */
+    var eV = expandFcWeekend(fcDates, fcVals);
+    var eH = expandFcWeekend(fcDates, bandHi);
+    var eL = expandFcWeekend(fcDates, bandLo);
+    var fcD = eV.d, fcN = eV.d.length;
+    var labels = hDates.concat(fcD);
+    var histData = hVals.concat(new Array(fcN).fill(null));
     /* прогноз начинаем от последней исторической точки, чтобы линия была непрерывной */
-    var fcData = new Array(m - 1).fill(null).concat([hVals[m - 1]]).concat(fcVals);
-    var hiData = new Array(m - 1).fill(null).concat([hVals[m - 1]]).concat(bandHi);
-    var loData = new Array(m - 1).fill(null).concat([hVals[m - 1]]).concat(bandLo);
+    var fcData = new Array(m - 1).fill(null).concat([hVals[m - 1]]).concat(eV.v);
+    var hiData = new Array(m - 1).fill(null).concat([hVals[m - 1]]).concat(eH.v);
+    var loData = new Array(m - 1).fill(null).concat([hVals[m - 1]]).concat(eL.v);
     var trendAll = trendHist.slice();
-    for (var k = 1; k <= fcDates.length; k++) trendAll.push(Math.exp(reg.a + reg.b * (n - 1 + k)));
+    for (var k = 1; k <= fcN; k++) trendAll.push(Math.exp(reg.a + reg.b * (n - 1 + k)));
 
     var cfg = {
       type: 'line',
@@ -829,7 +879,29 @@
         datasets: [
           { label: '90% верх', data: hiData, borderWidth: 0, pointRadius: 0, fill: false, tension: 0 },
           { label: '90% интервал', data: loData, borderWidth: 0, pointRadius: 0, fill: '-1', backgroundColor: 'rgba(251,191,36,.13)', tension: 0 },
-          { label: 'История', data: histData, borderColor: '#22d3ee', borderWidth: 1.6, pointRadius: 0, pointHitRadius: 8, tension: 0.15 },
+          { label: 'История', data: histData, borderColor: '#22d3ee', borderWidth: 1.6, pointHitRadius: 8, tension: 0.15,
+            /* хвост T+1 (дата позже сегодняшней) — пунктиром, точка — янтарная */
+            segment: {
+              borderDash: function (ctx) {
+                return (ctx.p1DataIndex < m && labels[ctx.p1DataIndex] > todayISO) ? [5, 4] : undefined;
+              }
+            },
+            pointRadius: function (ctx) {
+              return (ctx.dataIndex < m && labels[ctx.dataIndex] > todayISO) ? 3.5 : 0;
+            },
+            /* янтарь — только у T+1-точки; обычные и ховер-точки остаются неоновыми */
+            pointBackgroundColor: function (ctx) {
+              return (ctx.dataIndex < m && labels[ctx.dataIndex] > todayISO) ? '#fbbf24' : '#22d3ee';
+            },
+            pointBorderColor: function (ctx) {
+              return (ctx.dataIndex < m && labels[ctx.dataIndex] > todayISO) ? '#fbbf24' : '#22d3ee';
+            },
+            pointHoverBackgroundColor: function (ctx) {
+              return (ctx.dataIndex < m && labels[ctx.dataIndex] > todayISO) ? '#fbbf24' : '#22d3ee';
+            },
+            pointHoverBorderColor: function (ctx) {
+              return (ctx.dataIndex < m && labels[ctx.dataIndex] > todayISO) ? '#fbbf24' : '#22d3ee';
+            } },
           { label: 'Прогноз', data: fcData, borderColor: '#fbbf24', borderWidth: 1.8, borderDash: [6, 4], pointRadius: 0, pointHitRadius: 8, tension: 0.15 },
           { label: 'Тренд', data: trendAll, borderColor: 'rgba(139,155,180,.75)', borderWidth: 1.2, borderDash: [2, 4], pointRadius: 0, tension: 0 }
         ]
@@ -848,7 +920,13 @@
             padding: 10, displayColors: false,
             filter: function (item) { return item.dataset.label !== '90% верх' && item.parsed.y != null; },
             callbacks: {
-              title: function (items) { return items.length ? fmtDateRU(items[0].label) : ''; },
+              title: function (items) {
+                if (!items.length) return '';
+                /* дата истории позже сегодняшней — установка T+1, помечаем в тултипе
+                   (прогнозные даты не трогаем: там суффикс бы путал) */
+                var t1 = items[0].dataIndex < m && items[0].label > todayISO;
+                return fmtDateRU(items[0].label) + (t1 ? ' · T+1' : '');
+              },
               label: function (item) { return item.dataset.label + ': ' + fmt(item.parsed.y); }
             }
           }
@@ -894,12 +972,25 @@
        первые 15 строк одинаковы и кажется, что таблица не реагирует */
     var html = '';
     var prev = last;
+    var WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
     for (var i = 0; i < fcDates.length; i++) {
       var d = fcVals[i] / prev - 1;
       html += '<tr><td class="d">' + fmtDateRU(fcDates[i]) + '</td>' +
         '<td class="bnd">' + fmt(bandLo[i]) + '</td><td>' + fmt(fcVals[i]) + '</td>' +
         '<td class="bnd">' + fmt(bandHi[i]) + '</td>' +
         '<td class="' + clsOf(d) + '">' + fmtPct(d, 2) + '</td></tr>';
+      /* вс/пн после прогнозной субботы — дубли субботы приглушённым цветом:
+         курс ЦБ в эти дни не переставляется, действует субботняя установка */
+      var w = new Date(fcDates[i] + 'T12:00:00Z').getUTCDay();
+      if (w === 6) {
+        for (var k = 1; k <= 2; k++) {
+          var dd = isoDay(new Date(new Date(fcDates[i] + 'T12:00:00Z').getTime() + k * 864e5));
+          html += '<tr class="fc-dup"><td class="d">' + fmtDateRU(dd) + ' (' + WD[(6 + k) % 7] + ')</td>' +
+            '<td class="bnd">' + fmt(bandLo[i]) + '</td><td>' + fmt(fcVals[i]) + '</td>' +
+            '<td class="bnd">' + fmt(bandHi[i]) + '</td>' +
+            '<td class="flat">0,00 %</td></tr>';
+        }
+      }
       prev = fcVals[i];
     }
     $('fcBody').innerHTML = html;
@@ -931,26 +1022,52 @@
       return { id: y, lab: String(y), sort: y, pEnd: y + '-12-31' };
     }
     var groups = {}, order = [];
-    var totB = 0, nB = 0, totC = 0, nC = 0;
+    var totC = 0, nC = 0;
+    var totSD = [], totSV = []; /* дни установки всего окна — для итоговой волатильности */
     var winLast = lastRows[lastRows.length - 1].d;
     lastRows.forEach(function (r) {
       var k = pkey(r.d);
       var g = groups[k.id];
-      if (!g) { g = groups[k.id] = { lab: k.lab, sort: k.sort, pEnd: k.pEnd, sumB: 0, nB: 0, sumC: 0, nC: 0 }; order.push(k.id); }
+      if (!g) { g = groups[k.id] = { lab: k.lab, sort: k.sort, pEnd: k.pEnd, sumC: 0, nC: 0, sD: [], sV: [] }; order.push(k.id); }
       g.sumC += r.v; g.nC++; totC += r.v; nC++;
-      if (isSetDay(r.d)) { g.sumB += r.v; g.nB++; totB += r.v; nB++; }
+      if (isSetDay(r.d)) { g.sD.push(r.d); g.sV.push(r.v); totSD.push(r.d); totSV.push(r.v); }
     });
+    /* волатильность периода: σ дневных лог-изменений между днями установки ЦБ
+       (вых./праздники — не установки, нулевые дни не раздувают выборку),
+       годовых — по фактической плотности установок, как в карточке «Тренд» */
+    function volOf(sd, sv) {
+      var rets = [];
+      for (var i = 1; i < sv.length; i++) rets.push(Math.log(sv[i] / sv[i - 1]));
+      if (rets.length < 2) return null;
+      var span = (new Date(sd[sd.length - 1] + 'T12:00:00Z') - new Date(sd[0] + 'T12:00:00Z')) / 864e5;
+      if (span < 1) return null;
+      var ppy = rets.length / span * 365.25;
+      var mr = rets.reduce(function (a, x) { return a + x; }, 0) / rets.length;
+      var s2 = rets.reduce(function (a, x) { return a + (x - mr) * (x - mr); }, 0) / (rets.length - 1);
+      return Math.sqrt(s2) * Math.sqrt(ppy);
+    }
+    /* градация годовой волатильности: <7 % низкая (мятный), 7–12 % норма,
+       12–20 % средняя (янтарь), >20 % высокая (красный) */
+    function volCls(v) {
+      if (v == null) return '';
+      var p = v * 100;
+      return p < 7 ? 'vol-low' : p < 12 ? '' : p <= 20 ? 'vol-mid' : 'vol-high';
+    }
+    function fmtVol(v) {
+      if (v == null) return '—';
+      return '<span class="' + volCls(v) + '">' + (v * 100).toFixed(1).replace('.', ',') + ' %</span>';
+    }
     var ids = order.sort(function (a, b) { return groups[a].sort - groups[b].sort; });
     var html = '';
     ids.forEach(function (id) {
       var g = groups[id];
       var partial = g.pEnd > winLast ? ' *' : ''; /* текущий период ещё не завершён */
       html += '<tr><td class="d">' + g.lab + partial + '</td><td>' +
-        (g.nB ? fmt(g.sumB / g.nB) : '—') + '</td><td class="mut">' + fmt(g.sumC / g.nC) + '</td></tr>';
+        fmt(g.sumC / g.nC) + '</td><td class="mut">' + fmtVol(volOf(g.sD, g.sV)) + '</td></tr>';
     });
     if (ids.length > 1) {
       html += '<tr class="total"><td class="d">Итого за период</td><td>' +
-        (nB ? fmt(totB / nB) : '—') + '</td><td class="mut">' + fmt(totC / nC) + '</td></tr>';
+        fmt(totC / nC) + '</td><td class="mut">' + fmtVol(volOf(totSD, totSV)) + '</td></tr>';
     }
     body.innerHTML = html;
   }
@@ -1079,11 +1196,13 @@
     fetchJSON(CBR + '/daily_json.js', { cache: 'no-store' })
     .catch(function () { return jsonpFetch(CBR + '/daily_json.js'); })
     .then(function (t) {
+      if (!t || !t.Valute) return; /* 404/пустой ответ — пропускаем тик */
       var purl = String(t.PreviousURL).replace(/^\/\//, 'https://');
       fetchJSON(purl, { cache: 'no-store' })
       .catch(function () { return jsonpFetch(purl); })
       .then(function (p) {
-        loadTicker({ cur: t.Valute, prev: p.Valute });
+        if (p && p.Valute) loadTicker({ cur: t.Valute, prev: p.Valute });
+        else loadTicker({ cur: t.Valute, prev: t.Valute });
       }).catch(function () { /* лента останется как есть */ });
       mergeNamesFromSnapshot(t.Valute);
       var latest = String(t.Date).slice(0, 10);

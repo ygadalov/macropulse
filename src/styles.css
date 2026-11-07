@@ -293,7 +293,9 @@ tr:last-child td{border-bottom:none}
 .sliderbox{position:relative;height:38px}
 .sliderbox input[type=range]{margin:17px 0}
 .sliderbox .range-val{position:absolute;left:0;right:0;top:29px;margin-top:0;line-height:1.2}
-@media (max-width:1180px){
+/* пара + окно в одну строку, пока хватает ширины (≈860px: 340 пара + зазор +
+   6 кнопок окна); ниже — перенос: пара своей строкой, окно своей */
+@media (max-width:860px){
   .ctrlbar{flex-wrap:wrap;gap:16px}
   .ctrl-group:first-child{width:100%;max-width:420px}
   .ctrl-win{flex:1 1 100%}
@@ -550,8 +552,16 @@ tr:last-child td{border-bottom:none}
 /* ===== responsive ===== */
 @media (max-width:1180px){
   .layout{grid-template-columns:minmax(0,1fr)}
-  .col-right{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  .col-right{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch}
   .col-right .panel{margin-bottom:0}
+  /* прогноз — длинный: занимает обе строки левой колонки, средние и тренд
+     делят правую — иначе под средними образуется пустая зона */
+  .col-right > .panel:first-child{grid-row:1 / span 2}
+}
+@media (min-width:861px) and (max-width:1180px){
+  /* вторая строка тянется: тренд достраивается до низа прогноза,
+     панели заканчиваются на одном уровне */
+  .col-right{grid-template-rows:auto 1fr}
 }
 @media (max-width:860px){
   .layout{grid-template-columns:1fr}
@@ -612,6 +622,38 @@ tr:last-child td{border-bottom:none}
 .toast.show{opacity:1;visibility:visible;transform:translateY(0)}
 .info-btn:hover .info-tip,.info-btn:focus-visible .info-tip,.info-btn.on .info-tip{
   opacity:1;visibility:visible;transform:translateY(0);
+}
+/* метка T+1: курс установлен ЦБ сегодня, действует с завтрашней даты */
+.stat .k.t1{display:flex;align-items:center;justify-content:space-between;gap:6px;white-space:nowrap}
+.t1-badge{
+  position:relative;display:inline-block;padding:1px 6px;flex:none;
+  color:var(--amber);border:1px solid rgba(251,191,36,.45);border-radius:3px;
+  font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.08em;
+  cursor:help;
+}
+.t1-badge .info-tip{right:auto;left:-2px;width:230px;text-transform:none}
+.t1-badge .info-tip::before{right:auto;left:8px}
+.t1-badge:hover .info-tip,.t1-badge:focus-visible .info-tip{
+  opacity:1;visibility:visible;transform:translateY(0);
+}
+/* прогноз: дубли вс/пн после субботы — курс не переставляется */
+#fcTable tr.fc-dup td{color:var(--text-2)}
+#fcTable tr.fc-dup td.bnd{color:color-mix(in srgb, var(--amber) 38%, var(--text-2))}
+/* градация волатильности в таблице средних */
+#avgTable .vol-low{color:var(--mint)}
+#avgTable .vol-mid{color:var(--amber)}
+#avgTable .vol-high{color:var(--red)}
+/* мобильные таблицы: не сжимаем до ширины экрана, а даём горизонтальный скролл */
+@media (max-width:640px){
+  .fc-scroll,.avg-scroll{overflow-x:auto}
+  #fcTable,#avgTable{min-width:420px}
+  /* вся страница не сжимается: минимальная ширина макета, телефон скроллит
+     горизонтально — селекты, карточки, окно анализа, шапка и тикер
+     сохраняют пропорции (стандарт для плотных дашбордов) */
+  html,body{min-width:600px}
+  body{overflow-x:auto}
+  /* прогноз: внутренний скролл раньше, чтобы таблица не занимала весь экран */
+  .fc-scroll{max-height:400px}
 }
 .db-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 .db-info{font-size:11px;color:var(--text-3);letter-spacing:.02em}

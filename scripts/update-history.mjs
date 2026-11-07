@@ -9,14 +9,9 @@ import { readFileSync, writeFileSync } from 'node:fs';
 const FILE = 'fx-history.js';
 const MIRROR = 'https://www.cbr-xml-daily.ru';
 
-/* Дни без установки курса ЦБ: воскресенье, понедельник, госпраздники РФ.
-   Суббота — день установки: файл, датированный субботой, несёт пятничную установку. */
-const RU_HOLIDAYS = { '01-01': 1, '01-02': 1, '01-03': 1, '01-04': 1, '01-05': 1, '01-06': 1, '01-07': 1, '01-08': 1, '02-23': 1, '03-08': 1, '05-01': 1, '05-09': 1, '06-12': 1, '11-04': 1 };
+/* Календарный фильтр не нужен: архив ЦБ сам является календарём,
+   404 на несуществующий день обрабатывается в fetchJSON ниже. */
 const isoDay = d => d.getUTCFullYear() + '-' + String(d.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d.getUTCDate()).padStart(2, '0');
-function isRateDay(d) {
-  const w = d.getUTCDay();
-  return w !== 0 && w !== 1 && !RU_HOLIDAYS[isoDay(d).slice(5)];
-}
 
 async function fetchJSON(url, tries = 3) {
   for (let a = 1; a <= tries; a++) {
@@ -64,8 +59,12 @@ const today = new Date();
 const days = [];
 let d = new Date(hist.lastDate + 'T12:00:00Z');
 d = new Date(d.getTime() + 864e5);
+/* пробуем КАЖДЫЙ календарный день без календарного фильтра: архив ЦБ сам
+   является календарём — 404 означает «установки не было» (fetchJSON уже
+   возвращает null на 404). Так база остаётся полной при любых переносах
+   выходных и праздниках без захардкоженных правил */
 while (d <= today) {
-  if (isRateDay(d)) days.push(isoDay(d));
+  days.push(isoDay(d));
   d = new Date(d.getTime() + 864e5);
 }
 if (!days.length) { console.log('база актуальна, догрузка не нужна'); process.exit(0); }
