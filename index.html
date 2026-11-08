@@ -6,7 +6,7 @@
 <title>MacroPulse — FX Forecast Terminal</title>
 <meta name="description" content="MacroPulse · FX Forecast Terminal — официальные курсы ЦБ РФ, прогноз и долгосрочный тренд. Работает локально без серверов.">
 <link rel="stylesheet" href="./src/fonts.css">
-<link rel="stylesheet" href="./src/styles.css?v=20261107a">
+<link rel="stylesheet" href="./src/styles.css?v=20261108a">
 <script src="./src/vendor/chart.umd.min.js"></script>
 </head>
 <body>
@@ -136,7 +136,7 @@
   <aside class="col col-right">
     <section class="panel">
       <div class="field fc-horizon">
-        <label for="horizon"><span>Горизонт прогноза — <b id="horizonVal">14 дн.</b></span> <button class="info-btn" aria-label="Как читать прогноз" aria-expanded="false">i<span class="info-tip" role="tooltip">«Базовый» — медианный (наиболее вероятный) курс ансамбля на каждый день. «Нижний» и «Верхний» — границы полосы 90 %: факт остаётся внутри них с вероятностью около 90 %. Для планирования расходов в валюте закладывайте верхнюю границу (курс «с запасом»), валютных доходов — нижнюю. Разница между верхней границей и базовым курсом — цена неопределённости на срок. ЦБ не устанавливает курсы на воскресенье и понедельник: в эти дни действует субботняя установка, поэтому строки вс/пн (приглушённые) повторяют субботний прогноз, а горизонт считается в днях установки.</span></button></label>
+        <label for="horizon"><span>Горизонт прогноза — <b id="horizonVal">14 дн.</b></span> <button class="info-btn" aria-label="Как читать прогноз" aria-expanded="false">i<span class="info-tip" role="tooltip">Горизонт считается в днях установки курса ЦБ (обычно вт–сб); вс/пн в счёт не входят — действует субботняя установка, поэтому приглушённые строки вс/пн повторяют субботний прогноз. «Базовый» — медианный прогноз ансамбля на день. «Нижний»/«Верхний» — границы полосы 90 %: с вероятностью ~90 % факт останется внутри них. Для расходов в валюте закладывайте верхнюю границу, для валютных доходов — нижнюю.</span></button></label>
         <div class="sliderbox">
           <input type="range" id="horizon" min="3" max="60" step="1" value="14" aria-describedby="horizonVal">
           <i class="tick" style="left:19.3%"></i><i class="tick" style="left:47.4%"></i><i class="tick" style="left:73.7%"></i>
@@ -352,6 +352,6 @@
 </aside>
 
 <script src="./fx-history.js"></script>
-<script src="./src/main.js?v=20261107a"></script></script>
+<script src="./src/main.js?v=20261108a"></script></script>
 </body>
 </html>

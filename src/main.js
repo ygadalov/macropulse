@@ -824,7 +824,7 @@
     if (!el) return;
     el.innerHTML =
       'История: <b>' + fmtDateRU(dates[0]) + ' — ' + fmtDateRU(dates[n - 1]) + '</b> · ' + n + ' точек' +
-      '<span class="sep">·</span>Прогноз: <b>' + fmtDateRU(fcDates[0]) + ' — ' + fmtDateRU(fcDates[fcDates.length - 1]) + '</b> · ' + fcDates.length + ' раб. дн.';
+      '<span class="sep">·</span>Прогноз: <b>' + fmtDateRU(fcDates[0]) + ' — ' + fmtDateRU(fcDates[fcDates.length - 1]) + '</b> · ' + fcDates.length + ' дн.';
   }
 
   /* ---------- график ---------- */
@@ -996,7 +996,7 @@
     $('fcBody').innerHTML = html;
     var lastFc = fcDates.length - 1;
     $('fcCount').textContent = fmtDateShort(fcDates[0]) + ' — ' + fmtDateShort(fcDates[lastFc]) +
-      ' (' + fcDates.length + ' раб. дн.) · на ' + fmtDateShort(fcDates[lastFc]) + ': ' +
+      ' (' + fcDates.length + ' дн.) · на ' + fmtDateShort(fcDates[lastFc]) + ': ' +
       fmt(bandLo[lastFc]) + ' – ' + fmt(bandHi[lastFc]);
   }
 
@@ -1100,7 +1100,7 @@
 
     $('trendRows').innerHTML =
       trow('Дрейф, годовых', fmtPct(driftYear, 1), clsOf(driftYear)) +
-      trow('Ожидание на ' + state.horizon + ' раб. дн.', fmtPct(fcTotal), clsOf(fcTotal)) +
+      trow('Ожидание на ' + state.horizon + ' дн.', fmtPct(fcTotal), clsOf(fcTotal)) +
       trow('Прогноз на ' + fmtDateRU(nextCbrDays(dates[dates.length - 1], state.horizon)[state.horizon - 1]), fmt(fcEnd), '') +
       trow('Сила тренда (R²)', (r2 * 100).toFixed(0) + ' %', '') +
       trow('Волатильность, год.', (vol * 100).toFixed(1).replace('.', ',') + ' %', '') +
