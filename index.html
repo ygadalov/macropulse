@@ -6,7 +6,7 @@
 <title>MacroPulse — FX Forecast Terminal</title>
 <meta name="description" content="MacroPulse · FX Forecast Terminal — официальные курсы ЦБ РФ, прогноз и долгосрочный тренд. Работает локально без серверов.">
 <link rel="stylesheet" href="./src/fonts.css">
-<link rel="stylesheet" href="./src/styles.css?v=20261108a">
+<link rel="stylesheet" href="./src/styles.css?v=20261108b">
 <script src="./src/vendor/chart.umd.min.js"></script>
 </head>
 <body>
@@ -116,11 +116,14 @@
         <span class="pair" id="pairName">—/—</span>
         <span class="rate" id="pairRate">—</span>
         <span class="chg" id="pairChg"></span>
-        <div class="legend" aria-hidden="true">
+        <div class="legend">
           <span><i></i>История</span>
           <span><i class="fc"></i>Прогноз</span>
           <span><i class="bd"></i>90% интервал</span>
           <span><i class="tr"></i>Тренд</span>
+          <span class="ma-toggle" data-ma="20" role="button" tabindex="0" aria-pressed="false" title="Скользящая средняя за 20 дней установки — клик: показать/скрыть"><i class="ma20"></i>MA20</span>
+          <span class="ma-toggle" data-ma="50" role="button" tabindex="0" aria-pressed="false" title="Скользящая средняя за 50 дней установки — клик: показать/скрыть"><i class="ma50"></i>MA50</span>
+          <span class="ma-toggle" data-ma="200" role="button" tabindex="0" aria-pressed="false" title="Скользящая средняя за 200 дней установки — клик: показать/скрыть"><i class="ma200"></i>MA200</span>
         </div>
       </div>
       <div class="chart-period" id="chartPeriod"></div>
@@ -352,6 +355,6 @@
 </aside>
 
 <script src="./fx-history.js"></script>
-<script src="./src/main.js?v=20261108a"></script></script>
+<script src="./src/main.js?v=20261108b"></script></script>
 </body>
 </html>

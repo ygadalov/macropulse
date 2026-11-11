@@ -224,6 +224,14 @@ input[type=range]::-moz-range-thumb{
 .legend i.fc{border-top:2px dashed var(--amber)}
 .legend i.bd{border-top:none;height:8px;width:12px;background:rgba(251,191,36,.18);border:1px solid rgba(251,191,36,.4)}
 .legend i.tr{border-top:2px dotted #8b9bb4}
+/* скользящие средние — отключаемые индикаторы (по умолчанию выключены) */
+.legend i.ma20{border-top-color:var(--mint)}
+.legend i.ma50{border-top-color:var(--amber)}
+.legend i.ma200{border-top-color:var(--red)}
+.legend .ma-toggle{cursor:pointer;user-select:none;opacity:.38;transition:opacity .15s}
+.legend .ma-toggle:hover{opacity:.7}
+.legend .ma-toggle.on{opacity:1;color:var(--text)}
+.legend .ma-toggle:focus-visible{outline:1px solid var(--cyan);outline-offset:2px;border-radius:2px}
 .chart-period{
   font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);
   padding-bottom:10px;margin-bottom:4px;border-bottom:1px solid var(--border);

@@ -758,6 +758,33 @@
     var mr = rets.reduce(function (a, x) { return a + x; }, 0) / rets.length;
     var vol = Math.sqrt(rets.reduce(function (a, x) { return a + (x - mr) * (x - mr); }, 0) / Math.max(rets.length - 1, 1)) * Math.sqrt(ppy);
 
+    /* скользящие средние MA20/50/200 (по дням установки). Считаем по ряду
+       с запасом истории ДО левого края окна (420 календ. дней > 200 дней
+       установки), иначе начало линии в окне было бы «непрогретым» */
+    var maMap = null;
+    if (MA_PERIODS.some(function (p) { return settings.ma[p]; })) {
+      var extStart = new Date(new Date(dates[0] + 'T12:00:00Z').getTime() - 420 * 864e5);
+      var extFromD = new Date(DB.from + 'T12:00:00Z');
+      if (extStart < extFromD) extStart = extFromD;
+      var extRows = rowsFromDb(isoDay(extStart), dates[n - 1]);
+      var off = extRows.length - n; /* хвост extRows = текущее окно (тот же конец и календарь) */
+      if (off >= 0) {
+        /* префиксные суммы — SMA за O(1) на точку */
+        var pre = [0];
+        for (var ei = 0; ei < extRows.length; ei++) pre.push(pre[ei] + extRows[ei].v);
+        maMap = {};
+        MA_PERIODS.forEach(function (p) {
+          if (!settings.ma[p]) return;
+          var arr = new Array(n).fill(null);
+          for (var wi = 0; wi < n; wi++) {
+            var g = off + wi; /* индекс в extRows */
+            if (g + 1 >= p) arr[wi] = (pre[g + 1] - pre[g + 1 - p]) / p;
+          }
+          maMap[p] = arr;
+        });
+      }
+    }
+
     /* статистика */
     var last = values[n - 1];
     var d1 = n > 1 ? last / values[n - 2] - 1 : null;
@@ -766,7 +793,7 @@
     renderStats(last, d1, d30, vol, driftYear, dates[n - 1]);
     renderHead(last, d1);
     renderPeriod(dates, fcDates, n);
-    renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n);
+    renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n, maMap);
     renderForecastTable(fcDates, fcVals, bandLo, bandHi, last);
     renderTrend(driftYear, reg.r2, vol, fcVals, values, dates);
     renderAvg();
@@ -830,6 +857,10 @@
   /* ---------- график ---------- */
   /* прогноз только на дни установки (вт–сб); для отображения добавляем вс/пн
      плоскими дублями субботы — снимает вопрос «а что в воскресенье» */
+  /* отключаемые скользящие средние: периоды в днях установки, цвета — палитра терминала */
+  var MA_PERIODS = [20, 50, 200];
+  var MA_COLORS = { 20: '#34d399', 50: '#fbbf24', 200: '#f87171' }; /* мята/янтарь/красный */
+
   function expandFcWeekend(fcD, vals) {
     var D = [], V = [];
     for (var i = 0; i < fcD.length; i++) {
@@ -843,19 +874,23 @@
     return { d: D, v: V };
   }
 
-  function renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n) {
+  function renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n, maMap) {
     var todayISO = isoDay(new Date());
     /* прореживание истории для отрисовки: на слабом CPU тысяча точек × 5 рядов — секунды;
-       даты/значения/тренд режем одним шагом, прогноз не трогаем. Точки T+1-хвоста
+       даты/значения/тренд/MA режем одним шагом, прогноз не трогаем. Точки T+1-хвоста
        (даты позже сегодняшней) и точку перед хвостом всегда сохраняем */
     var s = Math.max(1, Math.ceil(n / 420));
     var hDates = [], hVals = [], trendHist = [];
+    var hMa = { 20: [], 50: [], 200: [] };
     for (var i = 0; i < n; i++) {
       var tv = Math.exp(reg.a + reg.b * i);
       var keep = (i % s === 0) || i === n - 1 ||
         dates[i] >= todayISO ||
         (i + 1 < n && dates[i] < todayISO && dates[i + 1] >= todayISO);
-      if (keep) { hDates.push(dates[i]); hVals.push(values[i]); trendHist.push(tv); }
+      if (keep) {
+        hDates.push(dates[i]); hVals.push(values[i]); trendHist.push(tv);
+        MA_PERIODS.forEach(function (p) { hMa[p].push(maMap && maMap[p] ? maMap[p][i] : null); });
+      }
     }
     var m = hVals.length;
     /* вс/пн-дубли субботы в прогнозе (отображение; модель и горизонт не меняются) */
@@ -871,6 +906,16 @@
     var loData = new Array(m - 1).fill(null).concat([hVals[m - 1]]).concat(eL.v);
     var trendAll = trendHist.slice();
     for (var k = 1; k <= fcN; k++) trendAll.push(Math.exp(reg.a + reg.b * (n - 1 + k)));
+
+    /* включённые MA — только на истории (на прогноз не продлеваем);
+       рисуем под линией истории (датасеты раньше — ниже) */
+    var maDs = [];
+    MA_PERIODS.forEach(function (p) {
+      if (!maMap || !maMap[p]) return;
+      maDs.push({ label: 'MA' + p, data: hMa[p].concat(new Array(fcN).fill(null)),
+        borderColor: MA_COLORS[p], borderWidth: 1.2, pointRadius: 0, pointHitRadius: 0,
+        pointHoverRadius: 0, tension: 0, fill: false });
+    });
 
     var cfg = {
       type: 'line',
@@ -961,6 +1006,9 @@
         }
       }
     };
+
+    /* MA под историей, но над полосой 90 % */
+    cfg.data.datasets.splice.apply(cfg.data.datasets, [2, 0].concat(maDs));
 
     if (chart) { chart.destroy(); }
     chart = new Chart($('fxChart').getContext('2d'), cfg);
@@ -1139,6 +1187,31 @@
       b.setAttribute('aria-pressed', String(parseInt(b.dataset.days, 10) === settings.winDays));
     });
   }
+  /* отключаемые MA: чипы в легенде графика (по умолчанию выключены),
+     выбор запоминается в настройках; переключение — мгновенный перерендер
+     без обхода сети (как смена горизонта) */
+  function applyMaToggles() {
+    document.querySelectorAll('.ma-toggle').forEach(function (el) {
+      var p = el.dataset.ma;
+      var on = !!settings.ma[p];
+      el.classList.toggle('on', on);
+      el.setAttribute('aria-pressed', String(on));
+    });
+  }
+  document.querySelectorAll('.ma-toggle').forEach(function (el) {
+    function flip() {
+      var p = el.dataset.ma;
+      settings.ma[p] = !settings.ma[p];
+      settingsSave();
+      applyMaToggles();
+      if (lastRows) computeAndRender(lastRows);
+    }
+    el.addEventListener('click', flip);
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); }
+    });
+  });
+
   $('winSeg').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
     if (!btn) return;
@@ -1164,7 +1237,7 @@
   $('horizon').style.setProperty('--fill', ((14 - 3) / 57 * 100) + '%');
 
   /* ---------- настройки (выдвижная панель) ---------- */
-  var settings = { autoMin: 0, modelMode: 'auto', holt: { alpha: 0.6, beta: 0.1, phi: 0.95 }, winDays: 180 };
+  var settings = { autoMin: 0, modelMode: 'auto', holt: { alpha: 0.6, beta: 0.1, phi: 0.95 }, winDays: 180, ma: { 20: false, 50: false, 200: false } };
   var lastSeriesEnd = null; /* последняя дата установки в загруженном ряде */
   var autoTimer = null;
 
@@ -1178,6 +1251,11 @@
       if (s.holt) {
         ['alpha', 'beta', 'phi'].forEach(function (k) {
           if (typeof s.holt[k] === 'number') settings.holt[k] = s.holt[k];
+        });
+      }
+      if (s.ma) {
+        MA_PERIODS.forEach(function (p) {
+          if (typeof s.ma[p] === 'boolean') settings.ma[p] = s.ma[p];
         });
       }
     } catch (e) { /* noop */ }
@@ -1556,6 +1634,7 @@
     applyRail(railPref() || (window.innerWidth < 1180 ? 'mini' : 'full'), false);
     settingsLoad();
     applyWindowFromSettings();
+    applyMaToggles();
     syncAutoSeg();
     syncModelUI();
     applyAuto();
