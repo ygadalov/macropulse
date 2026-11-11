@@ -6,7 +6,7 @@
 <title>MacroPulse — FX Forecast Terminal</title>
 <meta name="description" content="MacroPulse · FX Forecast Terminal — официальные курсы ЦБ РФ, прогноз и долгосрочный тренд. Работает локально без серверов.">
 <link rel="stylesheet" href="./src/fonts.css">
-<link rel="stylesheet" href="./src/styles.css?v=20261108b">
+<link rel="stylesheet" href="./src/styles.css?v=20261112a">
 <script src="./src/vendor/chart.umd.min.js"></script>
 </head>
 <body>
@@ -73,7 +73,14 @@
   <!-- ===== center: stats + controls + chart + averages ===== -->
   <section class="col col-center">
     <div class="panel ctrlbar">
-      <div class="ctrl-group">
+      <div class="ctrl-group ctrl-src">
+        <label id="srcLabel">Источник <button class="info-btn" aria-label="Об источниках курсов" aria-expanded="false">i<span class="info-tip" role="tooltip">ЦБ РФ — официальные курсы к рублю (54 валюты, cbr.ru), база догружается из браузера через зеркало. НБК — официальные курсы к тенге (48 валют, nationalbank.kz); у API НБК закрыт CORS, поэтому база KZT обновляется только ежедневным GitHub Action, браузерная догрузка невозможна.</span></button></label>
+        <div class="seg src-seg" role="group" aria-labelledby="srcLabel" id="srcSeg">
+          <button data-src="cbr" aria-pressed="true">ЦБ РФ</button>
+          <button data-src="nbk" aria-pressed="false">НБК</button>
+        </div>
+      </div>
+      <div class="ctrl-group ctrl-pair">
         <label>Валютная пара</label>
         <div class="pair-row">
           <div class="field" style="margin-bottom:0">
@@ -265,7 +272,7 @@
 
   <div class="drawer-sec">Общие</div>
   <div class="field">
-    <label>Локальная база <button class="info-btn" id="dbNoteBtn" aria-label="Как это работает" aria-expanded="false">i<span class="info-tip" role="tooltip" id="dbNote">Новые курсы догружаются с зеркала ЦБ РФ при открытии и копятся в браузере. «Сохранить базу» записывает их в файл <b>fx-history.js</b>: в локальной копии — перезаписывает файл рядом с приложением (в Chrome/Edge напрямую, в остальных браузерах — через скачивание, замените старый файл скачанным). Онлайн-версия обновляет базу сама раз в сутки — там кнопка не требуется.</span></button></label>
+    <label>Локальная база <button class="info-btn" id="dbNoteBtn" aria-label="Как это работает" aria-expanded="false">i<span class="info-tip" role="tooltip" id="dbNote">Новые курсы догружаются с зеркала ЦБ РФ при открытии и копятся в браузере. «Сохранить базу» записывает их в файл <b>fx-history.js</b>: в локальной копии — перезаписывает файл рядом с приложением (в Chrome/Edge напрямую, в остальных браузерах — через скачивание, замените старый файл скачанным). Онлайн-версия обновляет базу сама раз в сутки — там кнопка не требуется. База НБК (kzt-history.js) из браузера не догружается: у API Нацбанка Казахстана закрыт CORS, обновление — только ежедневным GitHub Action.</span></button></label>
     <div class="db-row"><span class="db-info" id="dbInfo">—</span><span class="db-badge" id="dbBadge">—</span></div>
     <button class="db-save" id="dbSave" disabled>Сохранить базу</button>
   </div>
@@ -301,9 +308,12 @@
   <div class="dsec" data-dsec="fx">
   <h3 class="help-h">Источник</h3>
   <p class="note">
-    Все котировки — <b>официальные курсы ЦБ РФ</b> (cbr.ru, 54 валюты). Кросс-курсы без
-    рубля считаются через рублёвые курсы обеих валют. Это локальная версия: вся история
-    (10 лет) лежит рядом с приложением в файле <b>fx-history.js</b>, поэтому график
+    Все котировки — <b>официальные курсы ЦБ РФ</b> (cbr.ru, 54 валюты) или, по выбору
+    в переключателе «Источник», <b>официальные курсы Нацбанка Казахстана</b>
+    (nationalbank.kz, 48 валют к тенге). Кросс-курсы без рубля/тенге считаются через
+    курсы обеих валют к валюте источника. Это локальная версия: вся история
+    (10 лет) лежит рядом с приложением в файлах <b>fx-history.js</b> (ЦБ РФ) и
+    <b>kzt-history.js</b> (НБК), поэтому график
     открывается мгновенно и полностью без сети. Если есть интернет, при открытии
     догружаются только новые дни с открытого JSON-зеркала курсов (cbr-xml-daily.ru)
     — обычно это 1–3 запроса. Новые данные копятся в браузере; кнопка
@@ -355,6 +365,7 @@
 </aside>
 
 <script src="./fx-history.js"></script>
-<script src="./src/main.js?v=20261108b"></script></script>
+<script src="./kzt-history.js"></script>
+<script src="./src/main.js?v=20261112a"></script></script>
 </body>
 </html>

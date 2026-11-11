@@ -163,6 +163,7 @@ select:focus-visible{outline:2px solid var(--cyan);outline-offset:1px}
 .swap svg{width:14px;height:14px}
 
 .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.src-seg{grid-template-columns:repeat(2,1fr);min-width:170px}
 .seg button{
   background:var(--panel-2);border:1px solid var(--border);
   color:var(--text-2);font-size:11px;letter-spacing:.06em;
@@ -190,7 +191,7 @@ input[type=range]::-moz-range-thumb{
 }
 .range-val{
   display:flex;justify-content:space-between;font-size:11px;color:var(--text-2);
-  margin-top:6px;font-variant-numeric:tabular-nums;
+  margin-top:6px;font-variant-numeric:tabular-nums;pointer-events:none;
 }
 .range-val b{color:var(--cyan);font-weight:700}
 
@@ -286,7 +287,8 @@ tr:last-child td{border-bottom:none}
 /* контрольная панель: пара + окно анализа над графиком — одна строка */
 .ctrlbar{display:flex;gap:28px;align-items:flex-end;justify-content:space-between;flex-wrap:nowrap}
 .ctrl-group label{display:block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-2);margin-bottom:6px}
-.ctrl-group:first-child{flex:0 0 auto;width:340px}
+.ctrl-pair{flex:0 0 auto;width:340px}
+.ctrl-src{flex:0 0 auto}
 .ctrl-win{flex:1;min-width:0}
 .ctrl-win .seg{display:grid;grid-template-columns:repeat(6,1fr)}
 /* единая высота контролов панели: селекты, своп, чипы окон */
@@ -301,11 +303,12 @@ tr:last-child td{border-bottom:none}
 .sliderbox{position:relative;height:38px}
 .sliderbox input[type=range]{margin:17px 0}
 .sliderbox .range-val{position:absolute;left:0;right:0;top:29px;margin-top:0;line-height:1.2}
-/* пара + окно в одну строку, пока хватает ширины (≈860px: 340 пара + зазор +
-   6 кнопок окна); ниже — перенос: пара своей строкой, окно своей */
-@media (max-width:860px){
+/* источник + пара + окно в одну строку, пока хватает ширины (≈1100px:
+   ~170 источник + 340 пара + зазоры + 6 кнопок окна); ниже — перенос:
+   источник и пара на первой строке, окно своей */
+@media (max-width:1100px){
   .ctrlbar{flex-wrap:wrap;gap:16px}
-  .ctrl-group:first-child{width:100%;max-width:420px}
+  .ctrl-pair{width:100%;max-width:420px}
   .ctrl-win{flex:1 1 100%}
 }
 /* панель средних курсов */
@@ -615,8 +618,10 @@ tr:last-child td{border-bottom:none}
 .field label:has(.info-btn){display:flex;align-items:center;justify-content:space-between}
 /* браузер пересылает :hover с <label> на вложенный labelable-элемент (кнопку i) —
    из-за этого тултип всплывал при наведении на любую точку подписи; гасим hit-test подписи */
-.field label:has(.info-btn){pointer-events:none}
-.field label:has(.info-btn) .info-btn{pointer-events:auto}
+.field label:has(.info-btn),
+.ctrl-group label:has(.info-btn){pointer-events:none}
+.field label:has(.info-btn) .info-btn,
+.ctrl-group label:has(.info-btn) .info-btn{pointer-events:auto}
 /* тост про несохранённую дельту (только локальная версия) */
 .toast{
   position:fixed;right:18px;bottom:calc(var(--ftrh,40px) + 14px);z-index:60;
@@ -641,6 +646,10 @@ tr:last-child td{border-bottom:none}
 }
 .t1-badge .info-tip{right:auto;left:-2px;width:230px;text-transform:none}
 .t1-badge .info-tip::before{right:auto;left:8px}
+/* (i) у подписи «Источник» сидит у левого края панели — раскрываем тултип вправо,
+   иначе он уезжает за экран */
+.ctrl-src .info-tip{right:auto;left:-2px}
+.ctrl-src .info-tip::before{right:auto;left:8px}
 .t1-badge:hover .info-tip,.t1-badge:focus-visible .info-tip{
   opacity:1;visibility:visible;transform:translateY(0);
 }

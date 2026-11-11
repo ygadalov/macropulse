@@ -1,4 +1,4 @@
-name: Обновление базы курсов ЦБ
+name: Обновление баз курсов (ЦБ РФ + НБК)
 
 on:
   schedule:
@@ -15,14 +15,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Догрузка дельты курсов
+      - name: Догрузка дельты курсов ЦБ РФ
         run: node scripts/update-history.mjs
+
+      - name: Догрузка дельты курсов НБК
+        run: node scripts/update-kzt-history.mjs
 
       - name: Коммит изменений
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add fx-history.js
+          git add fx-history.js kzt-history.js
           if git diff --cached --quiet; then
             echo "Изменений нет — база актуальна"
           else

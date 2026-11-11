@@ -11,7 +11,7 @@
   'use strict';
 
   var CBR = 'https://www.cbr-xml-daily.ru'; /* зеркало официальных курсов ЦБ РФ, JSON + CORS */
-  var state = { base: 'USD', quote: 'EUR', windowDays: 365, horizon: 14 };
+  var state = { base: 'USD', quote: 'EUR', windowDays: 365, horizon: 14, src: 'cbr' };
   var chart = null;
   var loadSeq = 0;
 
@@ -106,16 +106,20 @@
   setInterval(tickClock, 1000);
 
   /* ---------- снимок ЦБ (актуальный + предыдущая установка) ---------- */
-  /* rateOf: рублей за 1 ед. валюты (Value/Nominal); RUB = 1 */
+  /* rateOf: единиц валюты-знаменателя активного источника за 1 ед. валюты (Value/Nominal); знаменатель = 1 */
   function rateOf(valute, code) {
-    if (code === 'RUB') return 1;
+    if (code === DB.num) return 1;
     var r = valute && valute[code];
     return r ? r.Value / r.Nominal : null;
   }
 
-  /* ---------- лента котировок (всё — курсы ЦБ РФ) ---------- */
-  var TICKER_RUB = ['USD', 'EUR', 'CNY', 'KZT'];
-  var TICKER_CROSS = [['EUR', 'USD'], ['GBP', 'USD'], ['USD', 'JPY'], ['USD', 'CHF'], ['USD', 'TRY'], ['USD', 'INR']];
+  /* ---------- лента котировок (конфиг зависит от источника) ---------- */
+  var TICKER_CFG = {
+    cbr: { majors: ['USD', 'EUR', 'CNY', 'KZT'],
+           cross: [['EUR', 'USD'], ['GBP', 'USD'], ['USD', 'JPY'], ['USD', 'CHF'], ['USD', 'TRY'], ['USD', 'INR']] },
+    nbk: { majors: ['USD', 'EUR', 'RUB', 'CNY'],
+           cross: [['EUR', 'USD'], ['GBP', 'USD'], ['USD', 'JPY'], ['USD', 'CNY']] }
+  };
   function tkChip(label, val, chg) {
     var cls = chg > 0 ? 'up' : chg < 0 ? 'dn' : '';
     var arrow = chg > 0 ? '▲' : chg < 0 ? '▼' : '•';
@@ -124,12 +128,13 @@
   }
   function loadTicker(snap) {
     if (SEC !== 'fx') return; /* тикер контекстный: чужой раздел — не трогаем */
+    var cfg = TICKER_CFG[state.src] || TICKER_CFG.cbr;
     var html = '';
-    TICKER_RUB.forEach(function (cc) {
+    cfg.majors.forEach(function (cc) {
       var v = rateOf(snap.cur, cc), p = snap.prev ? rateOf(snap.prev, cc) : null;
-      if (v != null) html += tkChip(cc + '/RUB', v, p ? v / p - 1 : 0);
+      if (v != null) html += tkChip(cc + '/' + DB.num, v, p ? v / p - 1 : 0);
     });
-    TICKER_CROSS.forEach(function (pair) {
+    cfg.cross.forEach(function (pair) {
       var v1 = rateOf(snap.cur, pair[0]), v2 = rateOf(snap.cur, pair[1]);
       var p1 = snap.prev ? rateOf(snap.prev, pair[0]) : null;
       var p2 = snap.prev ? rateOf(snap.prev, pair[1]) : null;
@@ -217,10 +222,14 @@
     if (!railPref()) applyRail(window.innerWidth < 1180 ? 'mini' : 'full', false);
   });
 
-  /* ---------- список валют (полный перечень ЦБ + RUB, из локальной базы) ---------- */
-  var PIN = ['USD', 'EUR', 'RUB', 'CNY', 'GBP', 'CHF', 'JPY', 'KZT'];
+  /* ---------- список валют (перечень активного источника + его знаменатель) ---------- */
+  var PIN_CFG = {
+    cbr: ['USD', 'EUR', 'RUB', 'CNY', 'GBP', 'CHF', 'JPY', 'KZT'],
+    nbk: ['USD', 'EUR', 'KZT', 'RUB', 'CNY', 'GBP']
+  };
   function buildCurrencies() {
     var names = DB.names;
+    var PIN = PIN_CFG[state.src] || PIN_CFG.cbr;
     var codes = Object.keys(names);
     codes.sort(function (a, b) {
       var ia = PIN.indexOf(a), ib = PIN.indexOf(b);
@@ -428,41 +437,66 @@
     return !RU_HOLIDAYS[isoDay(d).slice(5)];
   }
 
-  /* ---------- локальная база курсов ---------- */
-  /* Источник — fx-history.js (window.FX_HIST): {generated, from, to, lastDate,
+  /* ---------- локальные базы курсов ---------- */
+  /* ЦБ РФ — fx-history.js (window.FX_HIST): {generated, from, to, lastDate,
      ids, names, cur:{КОД:{ISO: руб за 1 ед.}}}. Новые дни, догруженные с зеркала,
      дописываются в память и в localStorage-дельту ('fx:delta'); кнопка
-     «Сохранить базу» сшивает базу с дельтой и перезаписывает fx-history.js. */
-  var DB = {
-    cur: {},        // КОД -> {ISO: курс} — база + дельта, рабочая копия в памяти
-    names: {},      // КОД -> название
-    from: '', to: '', lastDate: '', generated: '',
-    delta: {},      // КОД -> {ISO: курс} — только догруженное за сессии (для сохранения)
-    dirtyDays: {}   // ISO -> 1 — даты, которых нет в файле fx-history.js
-  };
+     «Сохранить базу» сшивает базу с дельтой и перезаписывает fx-history.js.
+     НБК — kzt-history.js (window.KZT_HIST): {generated, from, to, lastDate, codes,
+     names, cur:{КОД:{ISO: тенге за 1 ед.}}}; у API НБК закрыт CORS, поэтому
+     браузерной догрузки нет — базу обновляет только ежедневный GitHub Action. */
+  function makeStore(num) {
+    return {
+      num: num,       // валюта-знаменатель источника ('RUB' | 'KZT'), её курс = 1
+      cur: {},        // КОД -> {ISO: курс} — база + дельта, рабочая копия в памяти
+      names: {},      // КОД -> название
+      from: '', to: '', lastDate: '', generated: '',
+      delta: {},      // КОД -> {ISO: курс} — только догруженное за сессии (для сохранения)
+      dirtyDays: {}   // ISO -> 1 — даты, которых нет в файле базы
+    };
+  }
+  var storeCbr = makeStore('RUB'), storeNbk = makeStore('KZT');
+  /* DB — ссылка на активную базу; весь движок работает через неё,
+     поэтому переключение источника = смена ссылки + перестроение UI */
+  var DB = storeCbr;
   function dbInit() {
     var H = window.FX_HIST || {};
-    DB.cur = H.cur || {};
-    DB.names = { RUB: 'Российский рубль' };
-    Object.keys(H.names || {}).forEach(function (cc) { DB.names[cc] = H.names[cc]; });
-    DB.from = H.from || ''; DB.to = H.to || '';
-    DB.lastDate = H.lastDate || ''; DB.generated = H.generated || '';
-    /* дельта из прошлых сессий (ещё не слита в файл) */
+    storeCbr.cur = H.cur || {};
+    storeCbr.names = { RUB: 'Российский рубль' };
+    Object.keys(H.names || {}).forEach(function (cc) { storeCbr.names[cc] = H.names[cc]; });
+    storeCbr.from = H.from || ''; storeCbr.to = H.to || '';
+    storeCbr.lastDate = H.lastDate || ''; storeCbr.generated = H.generated || '';
+    /* дельта из прошлых сессий (ещё не слита в файл) — только у ЦБ РФ */
     try {
       var d = JSON.parse(localStorage.getItem('fx:delta') || 'null');
       if (d && d.cur) {
         Object.keys(d.cur).forEach(function (cc) {
-          if (!DB.cur[cc]) DB.cur[cc] = {};
-          if (!DB.delta[cc]) DB.delta[cc] = {};
+          if (!storeCbr.cur[cc]) storeCbr.cur[cc] = {};
+          if (!storeCbr.delta[cc]) storeCbr.delta[cc] = {};
           Object.keys(d.cur[cc]).forEach(function (iso) {
-            DB.cur[cc][iso] = d.cur[cc][iso];
-            DB.delta[cc][iso] = d.cur[cc][iso];
-            DB.dirtyDays[iso] = 1;
-            if (iso > DB.lastDate) DB.lastDate = iso;
+            storeCbr.cur[cc][iso] = d.cur[cc][iso];
+            storeCbr.delta[cc][iso] = d.cur[cc][iso];
+            storeCbr.dirtyDays[iso] = 1;
+            if (iso > storeCbr.lastDate) storeCbr.lastDate = iso;
           });
         });
       }
     } catch (e) { /* noop */ }
+    /* база НБК (если файл рядом есть); в файле cur = {ДАТА:{КОД:курс}} —
+       транспонируем в формат движка {КОД:{ДАТА:курс}} */
+    var H2 = window.KZT_HIST || {};
+    storeNbk.cur = {};
+    if (H2.cur) Object.keys(H2.cur).forEach(function (iso) {
+      var day = H2.cur[iso];
+      Object.keys(day).forEach(function (cc) {
+        if (!storeNbk.cur[cc]) storeNbk.cur[cc] = {};
+        storeNbk.cur[cc][iso] = day[cc];
+      });
+    });
+    storeNbk.names = { KZT: 'Казахстанский тенге' };
+    Object.keys(H2.names || {}).forEach(function (cc) { storeNbk.names[cc] = H2.names[cc]; });
+    storeNbk.from = H2.from || ''; storeNbk.to = H2.to || '';
+    storeNbk.lastDate = H2.lastDate || ''; storeNbk.generated = H2.generated || '';
   }
   /* записать один день установки (dict: {КОД: руб за 1 ед.}) в память + дельту */
   function dbPut(iso, dict) {
@@ -514,8 +548,8 @@
       var iso = isoDay(d);
       if (bMap[iso] != null) lastB = bMap[iso];
       if (qMap[iso] != null) lastQ = qMap[iso];
-      var vb = state.base === 'RUB' ? 1 : lastB;
-      var vq = state.quote === 'RUB' ? 1 : lastQ;
+      var vb = state.base === DB.num ? 1 : lastB;
+      var vq = state.quote === DB.num ? 1 : lastQ;
       if (vb != null && vq != null) rows.push({ d: iso, v: vb / vq });
       d = new Date(d.getTime() + 864e5);
     }
@@ -667,7 +701,9 @@
      Сеть нужна только для догрузки дней, которых в базе ещё нет (обычно 0–3 дня). */
   function fetchRows(startISO, endISO, seq) {
     showState('Чтение локальной базы…', true, null);
-    var miss = missingRateDays(endISO);
+    /* догрузка из браузера есть только у ЦБ РФ (зеркало с открытым CORS);
+       у НБК CORS закрыт — база KZT обновляется только GitHub Action */
+    var miss = (state.src === 'cbr') ? missingRateDays(endISO) : [];
     var after = miss.length ? loadMissingDays(miss, seq) : Promise.resolve();
     return after.then(function () {
       var rows = rowsFromDb(startISO, endISO);
@@ -1061,7 +1097,7 @@
     if (!lastRows || !lastRows.length) { body.innerHTML = '<tr><td colspan="3" class="d">—</td></tr>'; return; }
     var bMap = DB.cur[state.base] || {}, qMap = DB.cur[state.quote] || {};
     function isSetDay(iso) { /* день фактической установки обоих курсов (не ffill) */
-      return (state.base === 'RUB' || bMap[iso] != null) && (state.quote === 'RUB' || qMap[iso] != null);
+      return (state.base === DB.num || bMap[iso] != null) && (state.quote === DB.num || qMap[iso] != null);
     }
     function pkey(iso) {
       var y = +iso.slice(0, 4), m = +iso.slice(5, 7) - 1;
@@ -1212,6 +1248,37 @@
     });
   });
 
+  /* ---------- переключатель источника (ЦБ РФ / НБК) ---------- */
+  function applySrcSeg() {
+    var seg = $('srcSeg');
+    if (!seg) return;
+    seg.querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.src === state.src));
+      if (b.dataset.src === 'nbk' && !(window.KZT_HIST && window.KZT_HIST.cur)) b.disabled = true;
+    });
+  }
+  function setSource(src) {
+    if (src !== 'cbr' && src !== 'nbk') return;
+    if (src === 'nbk' && !(window.KZT_HIST && window.KZT_HIST.cur)) return;
+    state.src = src;
+    DB = (src === 'nbk') ? storeNbk : storeCbr;
+    /* при смене источника всегда ставим пару по умолчанию: USD / нумерарий */
+    state.base = 'USD';
+    state.quote = DB.num;
+    settings.src = src;
+    settingsSave();
+    applySrcSeg();
+    buildCurrencies();
+    updateDbPanel();
+    tickerFromDb();
+    loadSeries();
+  }
+  $('srcSeg').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn || btn.disabled || btn.dataset.src === state.src) return;
+    setSource(btn.dataset.src);
+  });
+
   $('winSeg').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
     if (!btn) return;
@@ -1237,7 +1304,7 @@
   $('horizon').style.setProperty('--fill', ((14 - 3) / 57 * 100) + '%');
 
   /* ---------- настройки (выдвижная панель) ---------- */
-  var settings = { autoMin: 0, modelMode: 'auto', holt: { alpha: 0.6, beta: 0.1, phi: 0.95 }, winDays: 180, ma: { 20: false, 50: false, 200: false } };
+  var settings = { autoMin: 0, modelMode: 'auto', holt: { alpha: 0.6, beta: 0.1, phi: 0.95 }, winDays: 180, ma: { 20: false, 50: false, 200: false }, src: 'cbr' };
   var lastSeriesEnd = null; /* последняя дата установки в загруженном ряде */
   var autoTimer = null;
 
@@ -1258,6 +1325,7 @@
           if (typeof s.ma[p] === 'boolean') settings.ma[p] = s.ma[p];
         });
       }
+      if (s.src === 'nbk') settings.src = 'nbk';
     } catch (e) { /* noop */ }
   }
   function settingsSave() {
@@ -1271,6 +1339,7 @@
      сразу дописывается в локальную базу; лента обновляется всегда */
   function refreshLatest() {
     if (document.hidden) return;
+    if (state.src !== 'cbr') return; /* у НБК нет браузерной догрузки (CORS) */
     fetchJSON(CBR + '/daily_json.js', { cache: 'no-store' })
     .catch(function () { return jsonpFetch(CBR + '/daily_json.js'); })
     .then(function (t) {
@@ -1469,6 +1538,11 @@
       if (!IS_LOCAL) {
         badge.textContent = 'обновляется автоматически';
         badge.className = 'db-badge';
+      } else if (state.src === 'nbk') {
+        /* у НБК нет браузерной догрузки (CORS) — дельты не бывает,
+           сохранять нечего; база обновляется только Action онлайн-версии */
+        badge.textContent = 'обновляется ежедневно онлайн';
+        badge.className = 'db-badge';
       } else if (dirty > 0) {
         badge.textContent = '+' + dirty + ' дн. не сохранено';
         badge.className = 'db-badge dirty';
@@ -1477,7 +1551,7 @@
         badge.className = 'db-badge';
       }
     }
-    if (btn) { btn.disabled = dirty === 0; btn.style.display = IS_LOCAL ? '' : 'none'; }
+    if (btn) { btn.disabled = dirty === 0; btn.style.display = (IS_LOCAL && state.src === 'cbr') ? '' : 'none'; }
     /* статус-бар: дата базы; в локальной версии — янтарная пометка о несохранённой дельте */
     var fu = $('ftrUpdated');
     if (fu && DB.lastDate) {
@@ -1554,12 +1628,12 @@
   }
   function afterSaved() {
     /* дельта слита в файл — чистим её и из localStorage */
-    DB.delta = {};
-    DB.dirtyDays = {};
+    storeCbr.delta = {};
+    storeCbr.dirtyDays = {};
     try { localStorage.removeItem('fx:delta'); } catch (e) { /* noop */ }
     /* файл теперь совпадает с памятью: обновим window.FX_HIST, чтобы dbPut
        корректно отличал «уже в файле» от новых дат */
-    window.FX_HIST = buildExport();
+    var keep = DB; DB = storeCbr; window.FX_HIST = buildExport(); DB = keep;
     updateDbPanel();
     var b = $('dbSave');
     if (b) {
@@ -1568,7 +1642,10 @@
     }
   }
   function saveDbFile() {
+    if (state.src !== 'cbr') return; /* база НБК из браузера не сохраняется */
+    var keep = DB; DB = storeCbr; /* экспорт всегда из базы ЦБ РФ */
     var text = exportText();
+    DB = keep;
     var btn = $('dbSave');
     function fail(msg) {
       if (btn) { btn.textContent = msg; setTimeout(function () { btn.textContent = 'Сохранить базу'; }, 2500); }
@@ -1639,9 +1716,18 @@
     syncModelUI();
     applyAuto();
     dbInit();
-    if (!window.FX_HIST || !DB.cur.USD) {
+    /* восстановить выбранный источник (если его база на месте) */
+    if (settings.src === 'nbk' && window.KZT_HIST && window.KZT_HIST.cur) {
+      state.src = 'nbk';
+      DB = storeNbk;
+      state.base = 'USD'; state.quote = 'KZT';
+    }
+    applySrcSeg();
+    if (!DB.cur.USD) {
       setLed('err', 'NO BASE');
-      showError('Файл базы fx-history.js не найден или повреждён. Положите его рядом с index.html.');
+      showError(state.src === 'nbk'
+        ? 'Файл базы kzt-history.js не найден или повреждён. Положите его рядом с index.html.'
+        : 'Файл базы fx-history.js не найден или повреждён. Положите его рядом с index.html.');
       return;
     }
     buildCurrencies();
