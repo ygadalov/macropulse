@@ -1248,14 +1248,13 @@
     });
   });
 
-  /* ---------- переключатель источника (ЦБ РФ / НБК) ---------- */
-  function applySrcSeg() {
-    var seg = $('srcSeg');
-    if (!seg) return;
-    seg.querySelectorAll('button').forEach(function (b) {
-      b.setAttribute('aria-pressed', String(b.dataset.src === state.src));
-      if (b.dataset.src === 'nbk' && !(window.KZT_HIST && window.KZT_HIST.cur)) b.disabled = true;
-    });
+  /* ---------- выбор источника (ЦБ РФ / НБК) — выпадающий список ---------- */
+  function applySrcSel() {
+    var sel = $('srcSel');
+    if (!sel) return;
+    sel.value = state.src;
+    var nbkOpt = sel.querySelector('option[value="nbk"]');
+    if (nbkOpt) nbkOpt.disabled = !(window.KZT_HIST && window.KZT_HIST.cur);
   }
   function setSource(src) {
     if (src !== 'cbr' && src !== 'nbk') return;
@@ -1267,16 +1266,14 @@
     state.quote = DB.num;
     settings.src = src;
     settingsSave();
-    applySrcSeg();
+    applySrcSel();
     buildCurrencies();
     updateDbPanel();
     tickerFromDb();
     loadSeries();
   }
-  $('srcSeg').addEventListener('click', function (e) {
-    var btn = e.target.closest('button');
-    if (!btn || btn.disabled || btn.dataset.src === state.src) return;
-    setSource(btn.dataset.src);
+  $('srcSel').addEventListener('change', function () {
+    if (this.value !== state.src) setSource(this.value);
   });
 
   $('winSeg').addEventListener('click', function (e) {
@@ -1722,7 +1719,7 @@
       DB = storeNbk;
       state.base = 'USD'; state.quote = 'KZT';
     }
-    applySrcSeg();
+    applySrcSel();
     if (!DB.cur.USD) {
       setLed('err', 'NO BASE');
       showError(state.src === 'nbk'
