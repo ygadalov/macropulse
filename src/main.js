@@ -696,6 +696,8 @@
 
   /* ---------- загрузка ряда + расчёт ---------- */
   var lastRows = null; /* последний загруженный ряд: пересчёт горизонта без обхода кэша */
+  var lastFcCsv = [];  /* строки таблицы прогноза для CSV-выгрузки */
+  var lastAvgCsv = []; /* строки таблицы средних для CSV-выгрузки */
 
   /* основной путь: локальная база (fx-history.js + дельта) — сеть не нужна вовсе.
      Сеть нужна только для догрузки дней, которых в базе ещё нет (обычно 0–3 дня). */
@@ -826,7 +828,17 @@
     var d1 = n > 1 ? last / values[n - 2] - 1 : null;
     var d30 = n > 30 ? last / values[n - 31] - 1 : null;
 
-    renderStats(last, d1, d30, vol, driftYear, dates[n - 1]);
+    /* отклонение от MA50: та же календарная SMA, что линия MA50 на графике
+       (последние 50 календарных дней ряда, ffill — как в renderChart) */
+    var dev50 = null;
+    var r50 = rowsFromDb(isoDay(new Date(new Date(dates[n - 1] + 'T12:00:00Z').getTime() - 90 * 864e5)), dates[n - 1]);
+    if (r50.length >= 50) {
+      var s50 = 0;
+      for (var i50 = r50.length - 50; i50 < r50.length; i50++) s50 += r50[i50].v;
+      dev50 = last / (s50 / 50) - 1;
+    }
+
+    renderStats(last, d1, d30, vol, driftYear, dates[n - 1], dev50);
     renderHead(last, d1);
     renderPeriod(dates, fcDates, n);
     renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n, maMap);
@@ -850,7 +862,7 @@
 
   function clsOf(x) { return x > 0 ? 'up' : x < 0 ? 'dn' : 'flat'; }
 
-  function renderStats(last, d1, d30, vol, driftYear, lastDate) {
+  function renderStats(last, d1, d30, vol, driftYear, lastDate, dev50) {
     var k = $('stLastK');
     if (k) {
       if (lastDate > isoDay(new Date())) {
@@ -870,7 +882,13 @@
     var e1 = $('stD1'); e1.textContent = fmtPct(d1); e1.className = 'v ' + clsOf(d1);
     var e30 = $('stD30'); e30.textContent = fmtPct(d30); e30.className = 'v ' + clsOf(d30);
     $('stVol').textContent = (vol * 100).toFixed(1).replace('.', ',') + ' %';
-    var tr = $('stTrend'); tr.textContent = fmtPct(driftYear, 1); tr.className = 'v small ' + clsOf(driftYear);
+    var tr = $('stTrend'); tr.textContent = fmtPct(driftYear, 1); tr.className = 'v ' + clsOf(driftYear);
+    /* отклонение от MA50 (считается в computeAndRender — там есть ряд) */
+    var stM = $('stMA50');
+    if (stM) {
+      if (dev50 == null) { stM.textContent = '—'; stM.className = 'v flat'; }
+      else { stM.textContent = fmtPct(dev50, 1); stM.className = 'v ' + clsOf(dev50); }
+    }
   }
 
   function renderHead(last, d1) {
@@ -1057,22 +1075,26 @@
     var html = '';
     var prev = last;
     var WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+    lastFcCsv = [];
     for (var i = 0; i < fcDates.length; i++) {
       var d = fcVals[i] / prev - 1;
       html += '<tr><td class="d">' + fmtDateRU(fcDates[i]) + '</td>' +
         '<td class="bnd">' + fmt(bandLo[i]) + '</td><td>' + fmt(fcVals[i]) + '</td>' +
         '<td class="bnd">' + fmt(bandHi[i]) + '</td>' +
         '<td class="' + clsOf(d) + '">' + fmtPct(d, 2) + '</td></tr>';
+      lastFcCsv.push([fmtDateRU(fcDates[i]), fmt(bandLo[i]), fmt(fcVals[i]), fmt(bandHi[i]), fmtPct(d, 2)]);
       /* вс/пн после прогнозной субботы — дубли субботы приглушённым цветом:
          курс ЦБ в эти дни не переставляется, действует субботняя установка */
       var w = new Date(fcDates[i] + 'T12:00:00Z').getUTCDay();
       if (w === 6) {
         for (var k = 1; k <= 2; k++) {
           var dd = isoDay(new Date(new Date(fcDates[i] + 'T12:00:00Z').getTime() + k * 864e5));
-          html += '<tr class="fc-dup"><td class="d">' + fmtDateRU(dd) + ' (' + WD[(6 + k) % 7] + ')</td>' +
+          var dlab = fmtDateRU(dd) + ' (' + WD[(6 + k) % 7] + ')';
+          html += '<tr class="fc-dup"><td class="d">' + dlab + '</td>' +
             '<td class="bnd">' + fmt(bandLo[i]) + '</td><td>' + fmt(fcVals[i]) + '</td>' +
             '<td class="bnd">' + fmt(bandHi[i]) + '</td>' +
             '<td class="flat">0,00 %</td></tr>';
+          lastFcCsv.push([dlab, fmt(bandLo[i]), fmt(fcVals[i]), fmt(bandHi[i]), '0,00 %']);
         }
       }
       prev = fcVals[i];
@@ -1094,7 +1116,7 @@
   function renderAvg() {
     var body = $('avgBody');
     if (!body) return;
-    if (!lastRows || !lastRows.length) { body.innerHTML = '<tr><td colspan="3" class="d">—</td></tr>'; return; }
+    if (!lastRows || !lastRows.length) { body.innerHTML = '<tr><td colspan="3" class="d">—</td></tr>'; lastAvgCsv = []; return; }
     var bMap = DB.cur[state.base] || {}, qMap = DB.cur[state.quote] || {};
     function isSetDay(iso) { /* день фактической установки обоих курсов (не ffill) */
       return (state.base === DB.num || bMap[iso] != null) && (state.quote === DB.num || qMap[iso] != null);
@@ -1143,15 +1165,20 @@
     }
     var ids = order.sort(function (a, b) { return groups[a].sort - groups[b].sort; });
     var html = '';
+    lastAvgCsv = [];
     ids.forEach(function (id) {
       var g = groups[id];
       var partial = g.pEnd > winLast ? ' *' : ''; /* текущий период ещё не завершён */
+      var gv = volOf(g.sD, g.sV);
       html += '<tr><td class="d">' + g.lab + partial + '</td><td>' +
-        fmt(g.sumC / g.nC) + '</td><td class="mut">' + fmtVol(volOf(g.sD, g.sV)) + '</td></tr>';
+        fmt(g.sumC / g.nC) + '</td><td class="mut">' + fmtVol(gv) + '</td></tr>';
+      lastAvgCsv.push([g.lab + partial, fmt(g.sumC / g.nC), fmtVolTxt(gv)]);
     });
     if (ids.length > 1) {
+      var tv = volOf(totSD, totSV);
       html += '<tr class="total"><td class="d">Итого за период</td><td>' +
-        fmt(totC / nC) + '</td><td class="mut">' + fmtVol(volOf(totSD, totSV)) + '</td></tr>';
+        fmt(totC / nC) + '</td><td class="mut">' + fmtVol(tv) + '</td></tr>';
+      lastAvgCsv.push(['Итого за период', fmt(totC / nC), fmtVolTxt(tv)]);
     }
     body.innerHTML = html;
   }
@@ -1162,6 +1189,54 @@
     btn.setAttribute('aria-pressed', 'true');
     avgMode = btn.dataset.avg;
     renderAvg();
+  });
+
+  /* ---------- выгрузка CSV (прогноз / средние / динамика окна) ----------
+     Разделитель «;» и десятичная запятая — файл сразу открывается в Excel RU;
+     BOM в начале — чтобы Excel распознал UTF-8. Данные — ровно те, что в таблицах. */
+  function fmtVolTxt(v) {
+    return v == null ? '—' : (v * 100).toFixed(1).replace('.', ',') + ' %';
+  }
+  function downloadCsv(fname, head, rows) {
+    var lines = [head.join(';')].concat(rows.map(function (r) { return r.join(';'); }));
+    var blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fname;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 5000);
+  }
+  function csvStamp() { return isoDay(new Date()); }
+  function csvPair() { return state.base + state.quote; }
+  function bindCsv(id, makeRows) {
+    var b = $(id);
+    if (!b) return;
+    b.addEventListener('click', function (e) {
+      e.preventDefault(); /* кнопка внутри <label> — не дёргать связанный ползунок */
+      var made = makeRows();
+      if (!made) return;
+      downloadCsv(made[0], made[1], made[2]);
+      b.classList.add('saved');
+      setTimeout(function () { b.classList.remove('saved'); }, 1200);
+    });
+  }
+  bindCsv('fcCsv', function () {
+    if (!lastFcCsv.length) return null;
+    return ['прогноз_' + csvPair() + '_' + csvStamp() + '.csv',
+      ['Дата', 'Нижний', 'Базовый', 'Верхний', 'Δ, %'], lastFcCsv];
+  });
+  bindCsv('avgCsv', function () {
+    if (!lastAvgCsv.length) return null;
+    var MN = { m: 'месяц', q: 'квартал', y: 'год' };
+    return ['средние_' + csvPair() + '_' + MN[avgMode] + '_' + csvStamp() + '.csv',
+      ['Период', 'Ср.курс', 'Волат., год.'], lastAvgCsv];
+  });
+  bindCsv('chartCsv', function () {
+    if (!lastRows || !lastRows.length) return null;
+    var rows = lastRows.map(function (r) { return [fmtDateRU(r.d), fmt(r.v)]; });
+    return ['динамика_' + csvPair() + '_' + csvStamp() + '.csv',
+      ['Дата', 'Курс ' + csvPair()], rows];
   });
 
   /* ---------- карточка тренда ---------- */

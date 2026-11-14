@@ -6,7 +6,7 @@
 <title>MacroPulse — FX Forecast Terminal</title>
 <meta name="description" content="MacroPulse · FX Forecast Terminal — официальные курсы ЦБ РФ, прогноз и долгосрочный тренд. Работает локально без серверов.">
 <link rel="stylesheet" href="./src/fonts.css">
-<link rel="stylesheet" href="./src/styles.css?v=20261113a">
+<link rel="stylesheet" href="./src/styles.css?v=20261114a">
 <script src="./src/vendor/chart.umd.min.js"></script>
 </head>
 <body>
@@ -116,6 +116,7 @@
       <div class="stat"><div class="k">Изм. за 30 дн.</div><div class="v" id="stD30">—</div></div>
       <div class="stat"><div class="k">Волатильность, год.</div><div class="v" id="stVol">—</div></div>
       <div class="stat"><div class="k">Тренд, год.</div><div class="v" id="stTrend">—</div></div>
+      <div class="stat"><div class="k" title="Насколько текущий курс выше или ниже средней за 50 дней установки. Индикатор перекупленности/перепроданности, краткосрочный: в сильном тренде может долго оставаться большим по модулю — это не сигнал разворота само по себе.">Откл. от MA50</div><div class="v" id="stMA50">—</div></div>
     </div>
 
     <div class="chart-panel">
@@ -123,6 +124,7 @@
         <span class="pair" id="pairName">—/—</span>
         <span class="rate" id="pairRate">—</span>
         <span class="chg" id="pairChg"></span>
+        <button class="csv-btn" id="chartCsv" title="Скачать динамику окна по дням в CSV" aria-label="Скачать динамику окна по дням в CSV"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1v4.5M2.8 3.8 5 6l2.2-2.2M1.5 8.5h7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         <div class="legend">
           <span><i></i>История</span>
           <span><i class="fc"></i>Прогноз</span>
@@ -146,7 +148,7 @@
   <aside class="col col-right">
     <section class="panel">
       <div class="field fc-horizon">
-        <label for="horizon"><span>Горизонт прогноза — <b id="horizonVal">14 дн.</b></span> <button class="info-btn" aria-label="Как читать прогноз" aria-expanded="false">i<span class="info-tip" role="tooltip">Горизонт считается в днях установки курса ЦБ (обычно вт–сб); вс/пн в счёт не входят — действует субботняя установка, поэтому приглушённые строки вс/пн повторяют субботний прогноз. «Базовый» — медианный прогноз ансамбля на день. «Нижний»/«Верхний» — границы полосы 90 %: с вероятностью ~90 % факт останется внутри них. Для расходов в валюте закладывайте верхнюю границу, для валютных доходов — нижнюю.</span></button></label>
+        <label for="horizon"><span>Горизонт прогноза — <b id="horizonVal">14 дн.</b></span> <button class="csv-btn" id="fcCsv" title="Скачать таблицу прогноза в CSV" aria-label="Скачать таблицу прогноза в CSV"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1v4.5M2.8 3.8 5 6l2.2-2.2M1.5 8.5h7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button> <button class="info-btn" aria-label="Как читать прогноз" aria-expanded="false">i<span class="info-tip" role="tooltip">Горизонт считается в днях установки курса ЦБ (обычно вт–сб); вс/пн в счёт не входят — действует субботняя установка, поэтому приглушённые строки вс/пн повторяют субботний прогноз. «Базовый» — медианный прогноз ансамбля на день. «Нижний»/«Верхний» — границы полосы 90 %: с вероятностью ~90 % факт останется внутри них. Для расходов в валюте закладывайте верхнюю границу, для валютных доходов — нижнюю.</span></button></label>
         <div class="sliderbox">
           <input type="range" id="horizon" min="3" max="60" step="1" value="14" aria-describedby="horizonVal">
           <i class="tick" style="left:19.3%"></i><i class="tick" style="left:47.4%"></i><i class="tick" style="left:73.7%"></i>
@@ -163,7 +165,7 @@
     </section>
 
     <section class="panel avg-panel">
-      <h2>Средний курс за период <button class="info-btn" aria-label="Как считается среднее" aria-expanded="false">i<span class="info-tip" role="tooltip">Разбивка текущего окна анализа. «Ср.курс» — среднее официальных курсов ЦБ, взвешенное по календарным дням действия каждой установки (пятничный курс действует и на выходные): подходит для потоков, равномерно распределённых по дням. «Волат., год.» — σ дневных лог-изменений между днями установки ЦБ внутри периода, в годовом выражении: чем выше, тем сильнее колебался курс. Цвет — уровень: мятный < 7 % (низкая), обычный 7–12 % (норма), янтарный 12–20 % (средняя), красный > 20 % (высокая). Нижняя строка — итог за всё окно. Звёздочка (*) — период ещё не завершён: расчёт по имеющимся на сегодня дням; «—» — данных для волатильности недостаточно.</span></button></h2>
+      <h2>Средний курс за период <button class="csv-btn" id="avgCsv" title="Скачать таблицу средних в CSV" aria-label="Скачать таблицу средних в CSV"><svg viewBox="0 0 10 10" fill="none"><path d="M5 1v4.5M2.8 3.8 5 6l2.2-2.2M1.5 8.5h7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button> <button class="info-btn" aria-label="Как считается среднее" aria-expanded="false">i<span class="info-tip" role="tooltip">Разбивка текущего окна анализа. «Ср.курс» — среднее официальных курсов ЦБ, взвешенное по календарным дням действия каждой установки (пятничный курс действует и на выходные): подходит для потоков, равномерно распределённых по дням. «Волат., год.» — σ дневных лог-изменений между днями установки ЦБ внутри периода, в годовом выражении: чем выше, тем сильнее колебался курс. Цвет — уровень: мятный < 7 % (низкая), обычный 7–12 % (норма), янтарный 12–20 % (средняя), красный > 20 % (высокая). Нижняя строка — итог за всё окно. Звёздочка (*) — период ещё не завершён: расчёт по имеющимся на сегодня дням; «—» — данных для волатильности недостаточно.</span></button></h2>
       <div class="seg avg-seg" role="group" aria-label="Период усреднения" id="avgSeg">
         <button data-avg="m" aria-pressed="true">Месяц</button>
         <button data-avg="q" aria-pressed="false">Квартал</button>
@@ -366,6 +368,6 @@
 
 <script src="./fx-history.js"></script>
 <script src="./kzt-history.js"></script>
-<script src="./src/main.js?v=20261113a"></script></script>
+<script src="./src/main.js?v=20261114a"></script></script>
 </body>
 </html>
