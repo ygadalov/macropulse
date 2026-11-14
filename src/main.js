@@ -696,6 +696,48 @@
 
   /* ---------- загрузка ряда + расчёт ---------- */
   var lastRows = null; /* последний загруженный ряд: пересчёт горизонта без обхода кэша */
+  var pinDate = null;    /* ISO-дата пина (только сессия, в настройках не храним) */
+
+  /* установка/снятие пина: дата приводится к ближайшему дню ряда ≤ выбранной;
+     повторная установка на ту же дату снимает пин (тогл) */
+  function snapPin(d) {
+    if (!lastRows || !lastRows.length) return null;
+    var best = null;
+    for (var i = lastRows.length - 1; i >= 0; i--) {
+      if (lastRows[i].d <= d) { best = lastRows[i].d; break; }
+    }
+    return best;
+  }
+  function setPin(d) {
+    if (!d) { clearPin(); return; }
+    var snap = snapPin(d);
+    if (!snap) return; /* до начала окна — игнор */
+    if (pinDate === snap) { clearPin(); return; } /* тогл */
+    pinDate = snap;
+    syncPinUI();
+    if (lastRows) computeAndRender(lastRows);
+  }
+  function clearPin() {
+    if (!pinDate) return;
+    pinDate = null;
+    syncPinUI();
+    if (lastRows) computeAndRender(lastRows);
+  }
+  function syncPinUI() {
+    var b = $('pinBadge'), inp = $('pinDate');
+    if (!b || !inp) return;
+    b.hidden = !pinDate;
+    /* легенда: без даты — в строке с курсом, с датой — строкой ниже */
+    var head = b.closest('.chart-head');
+    if (head) head.classList.toggle('has-pin', !!pinDate);
+    if (pinDate) inp.value = pinDate;
+    /* min/max — всегда по актуальному окну: нативный календарь
+       блокирует даты вне диапазона (серые, не выбираются) */
+    if (lastRows && lastRows.length) {
+      inp.min = lastRows[0].d;
+      inp.max = lastRows[lastRows.length - 1].d;
+    }
+  }
   var lastFcCsv = [];  /* строки таблицы прогноза для CSV-выгрузки */
   var lastAvgCsv = []; /* строки таблицы средних для CSV-выгрузки */
 
@@ -774,6 +816,20 @@
     var h = state.horizon;
     lastSeriesEnd = dates[n - 1]; /* для автообновления: следим за новой датой установки */
 
+    /* пин-дата: просто маркер на графике + пересчёт КАРТОЧЕК показателей «на
+       эту дату». Окно, модель, прогноз, средние и панель тренда пином НЕ
+       затрагиваются (прогноз всегда от последней даты ряда) */
+    var pinIdx = -1;
+    if (pinDate) {
+      if (pinDate < dates[0] || pinDate > dates[n - 1]) {
+        pinDate = null; syncPinUI(); /* окно/пара сменились — пин устарел */
+      } else {
+        for (var pi = n - 1; pi >= 0; pi--) { if (dates[pi] <= pinDate) { pinIdx = pi; break; } }
+        if (pinIdx < 1) { pinIdx = -1; pinDate = null; syncPinUI(); }
+        else pinDate = dates[pinIdx]; /* приводим к фактическому дню ряда */
+      }
+    }
+
     /* ансамблевый прогноз: медиана трёх моделей, полоса из робастной σ + разброса моделей */
     var ens = ensembleForecast(logY, h);
     var fcDates = nextCbrDays(dates[n - 1], h);
@@ -838,14 +894,44 @@
       dev50 = last / (s50 / 50) - 1;
     }
 
-    renderStats(last, d1, d30, vol, driftYear, dates[n - 1], dev50);
-    renderHead(last, d1);
+    /* режим пина: карточки показателей — «на дату пина»; всё остальное
+       (график, прогноз, средние, тренд-панель) — по текущему окну как обычно */
+    if (pinIdx >= 0) {
+      var pVal = values[pinIdx];
+      var pD1 = pinIdx > 0 ? pVal / values[pinIdx - 1] - 1 : null;
+      var pD30 = pinIdx > 30 ? pVal / values[pinIdx - 31] - 1 : null;
+      var pLog = logY.slice(0, pinIdx + 1);
+      var pSpan = Math.max((new Date(dates[pinIdx] + 'T12:00:00Z') - new Date(dates[0] + 'T12:00:00Z')) / 864e5, 1);
+      var pPpy = pinIdx / pSpan * 365.25;
+      var pReg = ols(pLog);
+      var pDrift = Math.exp(pReg.b * pPpy) - 1;
+      var pVol = null;
+      if (pinIdx >= 2) {
+        var pr = [];
+        for (var pri = 1; pri <= pinIdx; pri++) pr.push(pLog[pri] - pLog[pri - 1]);
+        var pmr = pr.reduce(function (a, x) { return a + x; }, 0) / pr.length;
+        pVol = Math.sqrt(pr.reduce(function (a, x) { return a + (x - pmr) * (x - pmr); }, 0) / Math.max(pr.length - 1, 1)) * Math.sqrt(pPpy);
+      }
+      var pDev50 = null;
+      var pr50 = rowsFromDb(isoDay(new Date(new Date(pinDate + 'T12:00:00Z').getTime() - 90 * 864e5)), pinDate);
+      if (pr50.length >= 50) {
+        var ps50 = 0;
+        for (var pi50 = pr50.length - 50; pi50 < pr50.length; pi50++) ps50 += pr50[pi50].v;
+        pDev50 = pVal / (ps50 / 50) - 1;
+      }
+      renderStats(pVal, pD1, pD30, pVol, pDrift, pinDate, pDev50);
+      renderHead(pVal, pD1, true); /* шапка пары — тоже «на дату», сиреневым */
+    } else {
+      renderStats(last, d1, d30, vol, driftYear, dates[n - 1], dev50);
+      renderHead(last, d1, false);
+    }
     renderPeriod(dates, fcDates, n);
-    renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n, maMap);
+    renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n, maMap, pinIdx);
     renderForecastTable(fcDates, fcVals, bandLo, bandHi, last);
     renderTrend(driftYear, reg.r2, vol, fcVals, values, dates);
     renderAvg();
     renderModelParams(ens);
+    syncPinUI(); /* границы min/max поля даты и значение — по актуальному окну */
     hideState();
   }
 
@@ -881,7 +967,7 @@
     $('stLast').className = 'v';
     var e1 = $('stD1'); e1.textContent = fmtPct(d1); e1.className = 'v ' + clsOf(d1);
     var e30 = $('stD30'); e30.textContent = fmtPct(d30); e30.className = 'v ' + clsOf(d30);
-    $('stVol').textContent = (vol * 100).toFixed(1).replace('.', ',') + ' %';
+    $('stVol').textContent = (vol == null || !isFinite(vol)) ? '—' : (vol * 100).toFixed(1).replace('.', ',') + ' %';
     var tr = $('stTrend'); tr.textContent = fmtPct(driftYear, 1); tr.className = 'v ' + clsOf(driftYear);
     /* отклонение от MA50 (считается в computeAndRender — там есть ряд) */
     var stM = $('stMA50');
@@ -891,12 +977,14 @@
     }
   }
 
-  function renderHead(last, d1) {
+  function renderHead(last, d1, pinMode) {
     $('pairName').textContent = state.base + '/' + state.quote;
-    $('pairRate').textContent = fmt(last);
+    var r = $('pairRate');
+    r.textContent = fmt(last);
+    r.className = pinMode ? 'rate pin' : 'rate';
     var c = $('pairChg');
     c.textContent = fmtPct(d1) + ' за день';
-    c.className = 'chg ' + clsOf(d1);
+    c.className = pinMode ? 'chg pin' : 'chg ' + clsOf(d1);
   }
 
   /* периоды анализа — под головой графика, чтобы окно было видно всегда */
@@ -928,17 +1016,21 @@
     return { d: D, v: V };
   }
 
-  function renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n, maMap) {
+  function renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n, maMap, pinIdx) {
     var todayISO = isoDay(new Date());
+    /* pinIdx — индекс пина в ПОЛНЫХ массивах окна (-1 = режим обычный);
+       в режиме пина график показывает всё окно, прогноз наложен на факт */
+    var pinMode = (typeof pinIdx === 'number' && pinIdx >= 0);
+    var pinSnap = pinMode ? dates[pinIdx] : null;
     /* прореживание истории для отрисовки: на слабом CPU тысяча точек × 5 рядов — секунды;
        даты/значения/тренд/MA режем одним шагом, прогноз не трогаем. Точки T+1-хвоста
-       (даты позже сегодняшней) и точку перед хвостом всегда сохраняем */
+       (даты позже сегодняшней), точку перед хвостом и точку пина всегда сохраняем */
     var s = Math.max(1, Math.ceil(n / 420));
     var hDates = [], hVals = [], trendHist = [];
     var hMa = { 20: [], 50: [], 200: [] };
     for (var i = 0; i < n; i++) {
       var tv = Math.exp(reg.a + reg.b * i);
-      var keep = (i % s === 0) || i === n - 1 ||
+      var keep = (i % s === 0) || i === n - 1 || i === pinIdx ||
         dates[i] >= todayISO ||
         (i + 1 < n && dates[i] < todayISO && dates[i + 1] >= todayISO);
       if (keep) {
@@ -952,6 +1044,8 @@
     var eH = expandFcWeekend(fcDates, bandHi);
     var eL = expandFcWeekend(fcDates, bandLo);
     var fcD = eV.d, fcN = eV.d.length;
+    /* пин — только вертикальный маркер поверх обычного графика: состав
+       датасетов (история/прогноз/полоса/тренд) от пина не зависит */
     var labels = hDates.concat(fcD);
     var histData = hVals.concat(new Array(fcN).fill(null));
     /* прогноз начинаем от последней исторической точки, чтобы линия была непрерывной */
@@ -971,13 +1065,48 @@
         pointHoverRadius: 0, tension: 0, fill: false });
     });
 
+    /* вертикальная линия выбранной даты с точкой на значении и подписью даты */
+    var pinLinePlugin = {
+      id: 'pinLine',
+      afterDatasetsDraw: function (c) {
+        if (!pinMode) return;
+        var xi = c.data.labels.indexOf(pinSnap);
+        if (xi < 0) return;
+        var x = c.scales.x.getPixelForValue(xi);
+        var area = c.chartArea, ctx = c.ctx;
+        ctx.save();
+        ctx.strokeStyle = '#c4b5fd';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(x, area.top); ctx.lineTo(x, area.bottom); ctx.stroke();
+        ctx.setLineDash([]);
+        /* точка на значении курса в этот день */
+        if (values[pinIdx] != null) {
+          var y = c.scales.y.getPixelForValue(values[pinIdx]);
+          if (y >= area.top - 8 && y <= area.bottom + 8) {
+            ctx.beginPath(); ctx.arc(x, y, 6.5, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(196,181,253,.45)'; ctx.lineWidth = 1.5; ctx.stroke();
+            ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+            ctx.fillStyle = '#c4b5fd';
+            ctx.shadowColor = 'rgba(196,181,253,.8)'; ctx.shadowBlur = 8;
+            ctx.fill(); ctx.shadowBlur = 0;
+          }
+        }
+        ctx.fillStyle = '#c4b5fd';
+        ctx.font = '10px "JetBrains Mono", monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(fmtDateRU(pinSnap), Math.min(x + 5, area.right - 62), area.top + 11);
+        ctx.restore();
+      }
+    };
+
     var cfg = {
       type: 'line',
       data: {
         labels: labels,
         datasets: [
-          { label: '90% верх', data: hiData, borderWidth: 0, pointRadius: 0, fill: false, tension: 0 },
-          { label: '90% интервал', data: loData, borderWidth: 0, pointRadius: 0, fill: '-1', backgroundColor: 'rgba(251,191,36,.13)', tension: 0 },
+          { label: '90% верх', data: hiData, borderWidth: 0, pointRadius: 0, fill: false, tension: 0, spanGaps: true },
+          { label: '90% интервал', data: loData, borderWidth: 0, pointRadius: 0, fill: '-1', backgroundColor: 'rgba(251,191,36,.13)', tension: 0, spanGaps: true },
           { label: 'История', data: histData, borderColor: '#22d3ee', borderWidth: 1.6, pointHitRadius: 8, tension: 0.15,
             /* хвост T+1 (дата позже сегодняшней) — пунктиром, точка — янтарная */
             segment: {
@@ -1001,7 +1130,7 @@
             pointHoverBorderColor: function (ctx) {
               return (ctx.dataIndex < m && labels[ctx.dataIndex] > todayISO) ? '#fbbf24' : '#22d3ee';
             } },
-          { label: 'Прогноз', data: fcData, borderColor: '#fbbf24', borderWidth: 1.8, borderDash: [6, 4], pointRadius: 0, pointHitRadius: 8, tension: 0.15 },
+          { label: 'Прогноз', data: fcData, borderColor: '#fbbf24', borderWidth: 1.8, borderDash: [6, 4], pointRadius: 0, pointHitRadius: 8, tension: 0.15, spanGaps: true },
           { label: 'Тренд', data: trendAll, borderColor: 'rgba(139,155,180,.75)', borderWidth: 1.2, borderDash: [2, 4], pointRadius: 0, tension: 0 }
         ]
       },
@@ -1009,6 +1138,16 @@
         responsive: true, maintainAspectRatio: false,
         animation: false, /* анимация тысячи точек на слабом CPU — главный источник фризов */
         interaction: { mode: 'index', intersect: false },
+        /* клик по графику — пин-дата на ближайший день ряда (повторный клик
+           на ту же дату снимает пин) */
+        onClick: function (evt, elements, ch) {
+          var pts = ch.getElementsAtEventForMode(evt, 'index', { intersect: false }, true);
+          if (!pts.length) return;
+          var lab = ch.data.labels[pts[0].index];
+          /* setPin перестраивает график (destroy+new Chart) — нельзя внутри
+             собственной диспетчеризации события Chart.js, откладываем в тик */
+          if (typeof lab === 'string') setTimeout(function () { setPin(lab); }, 0);
+        },
         plugins: {
           legend: { display: false },
           tooltip: {
@@ -1063,6 +1202,7 @@
 
     /* MA под историей, но над полосой 90 % */
     cfg.data.datasets.splice.apply(cfg.data.datasets, [2, 0].concat(maDs));
+    cfg.plugins = [pinLinePlugin];
 
     if (chart) { chart.destroy(); }
     chart = new Chart($('fxChart').getContext('2d'), cfg);
@@ -1321,6 +1461,26 @@
     el.addEventListener('keydown', function (e) {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); }
     });
+  });
+
+  /* ---------- пин-дата: поле в бейдже шапки графика, крестик, Esc ---------- */
+  $('pinDate').addEventListener('change', function () {
+    if (this.value) setPin(this.value);
+  });
+  /* клик по самой дате открывает нативный выпадающий календарь */
+  $('pinDate').addEventListener('click', function () {
+    if (this.showPicker) { try { this.showPicker(); } catch (err) { /* noop */ } }
+  });
+  /* ✕ — снять пин и скрыть бейдж (вся «панелька» даты исчезает).
+     pointerdown + click: если открыт нативный календарь, первый click
+     может быть проглочен закрытием попапа — pointerdown срабатывает раньше */
+  $('pinClear').addEventListener('pointerdown', function (e) { e.preventDefault(); clearPin(); });
+  $('pinClear').addEventListener('click', function (e) { e.preventDefault(); clearPin(); });
+  document.addEventListener('keydown', function (e) {
+    /* не перехватываем Esc, когда открыт drawer — там он закрывает панель */
+    if (e.key === 'Escape' && pinDate &&
+        !$('settingsDrawer').classList.contains('open') &&
+        !$('helpDrawer').classList.contains('open')) clearPin();
   });
 
   /* ---------- выбор источника (ЦБ РФ / НБК) — выпадающий список ---------- */

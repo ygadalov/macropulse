@@ -212,13 +212,29 @@ input[type=range]::-moz-range-thumb{
 /* ===== chart ===== */
 .chart-panel{background:var(--panel);border:1px solid var(--border);padding:14px 14px 8px}
 .chart-head{
-  display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
-  padding-bottom:12px;
+  display:flex;align-items:baseline;gap:8px 14px;flex-wrap:wrap;
+  padding-bottom:10px;
 }
 .chart-head .pair{font-size:22px;font-weight:700;letter-spacing:.04em;color:var(--text)}
 .chart-head .rate{font-size:22px;font-weight:700;color:var(--cyan);font-variant-numeric:tabular-nums}
 .chart-head .chg{font-size:12px;font-variant-numeric:tabular-nums}
+/* режим выбранной даты: значения в шапке пересчитаны «на этот день» — сиреневым, в цвет маркера */
+.chart-head .rate.pin{color:#c4b5fd}
+.chart-head .chg.pin{color:#c4b5fd}
+/* выбранная дата: бейдж в шапке графика (виден только при выбранной дате);
+   [hidden] обязателен явно — иначе display:inline-flex перебивает UA-стиль [hidden] */
+.pin-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border:1px solid var(--violet,#c4b5fd);border-radius:2px;color:#c4b5fd;font-size:11px;font-variant-numeric:tabular-nums;line-height:1.4;background:rgba(196,181,253,.08)}
+.pin-badge[hidden]{display:none}
+.pin-badge input[type="date"]{background:transparent;border:none;color:#c4b5fd;font:inherit;font-family:inherit;letter-spacing:.02em;padding:0;width:106px;color-scheme:dark;outline:none;cursor:text}
+/* иконка нативного календаря перекрашена в цвет панельки (background-image заменяет стандартный глиф, попап остаётся нативным) */
+.pin-badge input[type="date"]::-webkit-calendar-picker-indicator{cursor:pointer;margin-left:2px;width:12px;height:12px;background-repeat:no-repeat;background-position:center;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path fill='%23c4b5fd' d='M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z'/></svg>")}
+.pin-badge input[type="date"]::-webkit-calendar-picker-indicator:hover{opacity:1}
+.pin-x{display:inline-grid;place-items:center;width:17px;height:17px;margin-left:2px;padding:0;background:transparent;border:1px solid transparent;border-radius:2px;color:#c4b5fd;font-size:10px;line-height:1;cursor:pointer;transition:all .15s ease;flex:none}
+.pin-x:hover,.pin-x:focus-visible{color:var(--text);border-color:currentColor;background:rgba(196,181,253,.15)}
+/* обычный режим: легенда в строке с курсом, прижата вправо */
 .legend{display:flex;gap:16px;flex-wrap:wrap;margin-left:auto}
+/* режим выбранной даты: легенда уходит на строку ниже, чтобы всё помещалось без прыжков в строке курса */
+.chart-head.has-pin .legend{flex-basis:100%;margin-left:0;padding-top:2px}
 .legend span{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-2)}
 .legend i{width:18px;height:0;border-top:2px solid var(--cyan);display:inline-block}
 .legend i.fc{border-top:2px dashed var(--amber)}
@@ -240,6 +256,7 @@ input[type=range]::-moz-range-thumb{
 .chart-period b{color:var(--text-2);font-weight:600}
 .chart-period .sep{color:var(--border-strong)}
 .chart-wrap{position:relative;height:420px}
+.chart-wrap canvas{cursor:crosshair} /* клик по графику ставит пин-дату */
 
 /* skeleton / error */
 .state-msg{
@@ -357,7 +374,7 @@ tr:last-child td{border-bottom:none}
     padding:14px 0 14px 14px} /* справа 0: полоса график↔прогноз = тот же gap 14px */
   .chart-panel{flex:1;min-height:0;display:flex;flex-direction:column}
   .chart-wrap{flex:1;height:auto;min-height:220px}
-  .chart-wrap canvas{position:absolute;inset:0}
+  .chart-wrap canvas{position:absolute;inset:0;cursor:crosshair}
   .col-right{display:contents}
   .col-right > .panel:first-child{grid-column:2 / span 2;grid-row:1;min-height:0;display:flex;flex-direction:column;
     margin:14px 14px 0 0}                                                                                 /* прогноз: на всю ширину правой части */
