@@ -11,7 +11,8 @@
   'use strict';
 
   var CBR = 'https://www.cbr-xml-daily.ru'; /* зеркало официальных курсов ЦБ РФ, JSON + CORS */
-  var state = { base: 'USD', quote: 'EUR', windowDays: 365, horizon: 14, src: 'cbr' };
+  var state = { base: 'USD', quote: 'EUR', windowDays: 365, horizon: 14, src: 'cbr', manual: null };
+  /* state.manual = {from,to} ISO — ручной диапазон (только сессия, не сохраняем) */
   var chart = null;
   var loadSeq = 0;
 
@@ -765,13 +766,25 @@
     if (state.base === state.quote) { showError('Выберите две разные валюты.'); return; }
     setLed('', 'LOADING');
 
-    var end = new Date();
-    /* T+1: вечером после установки ЦБ (~15:00 МСК) в базе уже есть завтрашняя
-       дата — график достраиваем до неё (хвост рисуется пунктиром, метка T+1) */
-    if (DB.lastDate && DB.lastDate > isoDay(end)) end = new Date(DB.lastDate + 'T12:00:00Z');
-    var start = new Date(end.getTime() - state.windowDays * 864e5);
-    var fromD = new Date(DB.from + 'T12:00:00Z'); /* MAX: не раньше начала базы */
-    if (start < fromD) start = fromD;
+    var start, end;
+    if (state.manual) {
+      /* ручной диапазон: границы зажаты в пределы базы; прогноз строится,
+         только если конец диапазона = последней дате базы (см. computeAndRender) */
+      start = new Date(state.manual.from + 'T12:00:00Z');
+      end = new Date(state.manual.to + 'T12:00:00Z');
+      var dbFrom = new Date(DB.from + 'T12:00:00Z'), dbLast = new Date(DB.lastDate + 'T12:00:00Z');
+      if (start < dbFrom) start = dbFrom;
+      if (end > dbLast) end = dbLast;
+      if (end < start) end = start;
+    } else {
+      end = new Date();
+      /* T+1: вечером после установки ЦБ (~15:00 МСК) в базе уже есть завтрашняя
+         дата — график достраиваем до неё (хвост рисуется пунктиром, метка T+1) */
+      if (DB.lastDate && DB.lastDate > isoDay(end)) end = new Date(DB.lastDate + 'T12:00:00Z');
+      start = new Date(end.getTime() - state.windowDays * 864e5);
+      var fromD = new Date(DB.from + 'T12:00:00Z'); /* MAX: не раньше начала базы */
+      if (start < fromD) start = fromD;
+    }
     fetchRows(isoDay(start), isoDay(end), seq).then(function (rows) {
       if (seq !== loadSeq) return; /* устаревший ответ */
       lastRows = rows;
@@ -830,12 +843,22 @@
       }
     }
 
-    /* ансамблевый прогноз: медиана трёх моделей, полоса из робастной σ + разброса моделей */
-    var ens = ensembleForecast(logY, h);
-    var fcDates = nextCbrDays(dates[n - 1], h);
-    var fcVals = ens.forecast.map(Math.exp);
-    var bandHi = ens.bandHi.map(Math.exp);
-    var bandLo = ens.bandLo.map(Math.exp);
+    /* прогноз строится, если ряд дотягивается до актуального края данных
+       (максимум из «сегодня» и последней даты базы — покрывает T+1-вечер),
+       с допуском 3 дня на выходные/праздники: диапазон «по пятницу» в воскресенье
+       прогноз даёт, а чисто исторический — нет, там «Итоги периода» */
+    var edgeDay = isoDay(new Date());
+    if (DB.lastDate && DB.lastDate > edgeDay) edgeDay = DB.lastDate;
+    var hasFc = (new Date(edgeDay + 'T12:00:00Z') - new Date(dates[n - 1] + 'T12:00:00Z')) <= 3 * 864e5;
+    var ens = null, fcDates = [], fcVals = [], bandHi = [], bandLo = [];
+    if (hasFc) {
+      /* ансамблевый прогноз: медиана трёх моделей, полоса из робастной σ + разброса моделей */
+      ens = ensembleForecast(logY, h);
+      fcDates = nextCbrDays(dates[n - 1], h);
+      fcVals = ens.forecast.map(Math.exp);
+      bandHi = ens.bandHi.map(Math.exp);
+      bandLo = ens.bandLo.map(Math.exp);
+    }
 
     /* фактическая плотность точек ряда в году (ЦБ ставит курс вт–пт, без праздников) */
     var spanDays = Math.max((new Date(dates[n - 1] + 'T12:00:00Z') - new Date(dates[0] + 'T12:00:00Z')) / 864e5, 1);
@@ -927,10 +950,24 @@
     }
     renderPeriod(dates, fcDates, n);
     renderChart(dates, values, fcDates, fcVals, bandHi, bandLo, reg, n, maMap, pinIdx);
-    renderForecastTable(fcDates, fcVals, bandLo, bandHi, last);
+    /* панель справа: прогноз либо «Итоги периода» (ручной исторический диапазон) */
+    var fcPanel = $('fcPanel'), rangePanel = $('rangePanel');
+    if (fcPanel && rangePanel) {
+      fcPanel.hidden = !hasFc;
+      rangePanel.hidden = hasFc;
+    }
+    var legendEl = document.querySelector('.legend');
+    if (legendEl) legendEl.classList.toggle('no-fc', !hasFc);
+    if (hasFc) {
+      renderForecastTable(fcDates, fcVals, bandLo, bandHi, last);
+      renderModelParams(ens);
+    } else {
+      renderRangeSummary(dates, values, vol, driftYear, reg);
+      var mp = $('modelParams');
+      if (mp) mp.textContent = 'Прогноз отключён — ручной диапазон без текущей даты';
+    }
     renderTrend(driftYear, reg.r2, vol, fcVals, values, dates);
     renderAvg();
-    renderModelParams(ens);
     syncPinUI(); /* границы min/max поля даты и значение — по актуальному окну */
     hideState();
   }
@@ -987,13 +1024,39 @@
     c.className = pinMode ? 'chg pin' : 'chg ' + clsOf(d1);
   }
 
-  /* периоды анализа — под головой графика, чтобы окно было видно всегда */
+  /* периоды анализа — под головой графика, чтобы окно было видно всегда;
+     в ручном режиме диапазон подсвечен янтарным, слово «История» заменено на «Период» */
   function renderPeriod(dates, fcDates, n) {
     var el = $('chartPeriod');
     if (!el) return;
+    var lbl = state.manual ? 'Период' : 'История';
+    var bOpen = state.manual ? '<b class="rng">' : '<b>';
     el.innerHTML =
-      'История: <b>' + fmtDateRU(dates[0]) + ' — ' + fmtDateRU(dates[n - 1]) + '</b> · ' + n + ' точек' +
-      '<span class="sep">·</span>Прогноз: <b>' + fmtDateRU(fcDates[0]) + ' — ' + fmtDateRU(fcDates[fcDates.length - 1]) + '</b> · ' + fcDates.length + ' дн.';
+      lbl + ': ' + bOpen + fmtDateRU(dates[0]) + ' — ' + fmtDateRU(dates[n - 1]) + '</b> · ' + n + ' точек' +
+      (fcDates.length ?
+        '<span class="sep">·</span>Прогноз: <b>' + fmtDateRU(fcDates[0]) + ' — ' + fmtDateRU(fcDates[fcDates.length - 1]) + '</b> · ' + fcDates.length + ' дн.' : '');
+  }
+
+  /* «Итоги периода» — правая панель в ручном историческом диапазоне (без прогноза) */
+  function renderRangeSummary(dates, values, vol, driftYear, reg) {
+    var el = $('rangeRows');
+    if (!el) return;
+    var n = values.length;
+    var first = values[0], last = values[n - 1];
+    var minV = Infinity, maxV = -Infinity, minD = '', maxD = '';
+    for (var i = 0; i < n; i++) {
+      if (values[i] < minV) { minV = values[i]; minD = dates[i]; }
+      if (values[i] > maxV) { maxV = values[i]; maxD = dates[i]; }
+    }
+    var total = last / first - 1;
+    el.innerHTML =
+      trow('Изм. за период', fmtPct(total) + ' · ' + fmt(first) + ' → ' + fmt(last), clsOf(total)) +
+      trow('Минимум', fmt(minV) + ' · ' + fmtDateRU(minD), '') +
+      trow('Максимум', fmt(maxV) + ' · ' + fmtDateRU(maxD), '') +
+      trow('Дрейф, годовых', fmtPct(driftYear, 1), clsOf(driftYear)) +
+      trow('Сила тренда (R²)', (reg.r2 * 100).toFixed(0) + ' %', '') +
+      trow('Волатильность, год.', (vol == null || !isFinite(vol)) ? '—' : (vol * 100).toFixed(1).replace('.', ',') + ' %', '') +
+      '<p class="note" style="margin-top:10px">Прогноз не строится: диапазон не включает текущую дату — модели нужен актуальный конец ряда.</p>';
   }
 
   /* ---------- график ---------- */
@@ -1389,20 +1452,26 @@
     $('trendBadge').innerHTML = '<span class="badge ' + kind + '">' + word + '</span>';
 
     var last = values[values.length - 1];
-    var fcEnd = fcVals[fcVals.length - 1];
-    var fcTotal = fcEnd / last - 1;
+    var hasFc = fcVals && fcVals.length > 0;
     var years = (new Date(dates[dates.length - 1] + 'T12:00:00Z') - new Date(dates[0] + 'T12:00:00Z')) / 864e5 / 365.25;
     var comment;
     if (abs < 0.02) comment = 'Выраженного направленного движения за окно нет — курс колеблется вокруг среднего уровня.';
     else if (driftYear > 0) comment = state.base + ' в среднем укрепляется к ' + state.quote + ' в долгосрочной перспективе.';
     else comment = state.base + ' в среднем ослабевает к ' + state.quote + ' в долгосрочной перспективе.';
 
+    var fcRows = '';
+    if (hasFc) {
+      var fcEnd = fcVals[fcVals.length - 1];
+      var fcTotal = fcEnd / last - 1;
+      fcRows =
+        trow('Ожидание на ' + state.horizon + ' дн.', fmtPct(fcTotal), clsOf(fcTotal)) +
+        trow('Прогноз на ' + fmtDateRU(nextCbrDays(dates[dates.length - 1], state.horizon)[state.horizon - 1]), fmt(fcEnd), '');
+    }
     $('trendRows').innerHTML =
       trow('Дрейф, годовых', fmtPct(driftYear, 1), clsOf(driftYear)) +
-      trow('Ожидание на ' + state.horizon + ' дн.', fmtPct(fcTotal), clsOf(fcTotal)) +
-      trow('Прогноз на ' + fmtDateRU(nextCbrDays(dates[dates.length - 1], state.horizon)[state.horizon - 1]), fmt(fcEnd), '') +
+      fcRows +
       trow('Сила тренда (R²)', (r2 * 100).toFixed(0) + ' %', '') +
-      trow('Волатильность, год.', (vol * 100).toFixed(1).replace('.', ',') + ' %', '') +
+      trow('Волатильность, год.', (vol == null || !isFinite(vol)) ? '—' : (vol * 100).toFixed(1).replace('.', ',') + ' %', '') +
       trow('Окно анализа', fmtDateShort(dates[0]) + ' — ' + fmtDateShort(dates[dates.length - 1]) + ' · ~' + fmtWindow(years), '') +
       '<p class="note" style="margin-top:10px">' + comment + ' Чем выше R², тем устойчивее тренд; при R² ниже ~30 % тренд скорее шум.</p>';
   }
@@ -1514,12 +1583,85 @@
   $('winSeg').addEventListener('click', function (e) {
     var btn = e.target.closest('button');
     if (!btn) return;
+    state.manual = null; /* любой чип выходит из ручного режима */
+    syncRangeUI();
     this.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
     btn.setAttribute('aria-pressed', 'true');
     state.windowDays = parseInt(btn.dataset.days, 10);
     settings.winDays = state.windowDays;
     settingsSave();
     loadSeries();
+  });
+
+  /* ---------- ручной диапазон: кнопка-календарь после MAX + поповер «с/по» ---------- */
+  function syncRangeUI() {
+    var btn = $('rangeBtn'), pop = $('rangePop');
+    if (!btn) return;
+    btn.classList.toggle('on', !!state.manual);
+    btn.setAttribute('aria-pressed', String(!!state.manual));
+    if (state.manual) {
+      /* в ручном режиме ни один чип не активен */
+      var seg = $('winSeg');
+      if (seg) seg.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+      btn.title = 'Ручной период: ' + fmtDateRU(state.manual.from) + ' — ' + fmtDateRU(state.manual.to) + '. Клик — изменить; выход — любой чип окна';
+    } else {
+      btn.title = 'Ручной выбор периода: задать даты «с» и «по» вручную';
+      if (pop) pop.hidden = true;
+    }
+  }
+  function openRangePop() {
+    var pop = $('rangePop'), f = $('rangeFrom'), t = $('rangeTo');
+    if (!pop || !f || !t || !DB || !DB.lastDate) return;
+    var minD = DB.from, maxD = DB.lastDate;
+    f.min = minD; f.max = maxD; t.min = minD; t.max = maxD;
+    if (state.manual) { f.value = state.manual.from; t.value = state.manual.to; }
+    else {
+      t.value = maxD;
+      var d0 = new Date(maxD + 'T12:00:00Z');
+      var s0 = isoDay(new Date(d0.getTime() - state.windowDays * 864e5));
+      f.value = s0 < minD ? minD : s0;
+    }
+    pop.hidden = false;
+    f.focus();
+  }
+  function applyRange() {
+    var f = $('rangeFrom').value, t = $('rangeTo').value;
+    if (!f || !t) return;
+    if (f > t) { var tmp = f; f = t; t = tmp; } /* перепутанные границы — разворачиваем */
+    if (f < DB.from) f = DB.from;
+    if (t > DB.lastDate) t = DB.lastDate;
+    state.manual = { from: f, to: t };
+    $('rangePop').hidden = true;
+    syncRangeUI();
+    loadSeries();
+  }
+  $('rangeBtn').addEventListener('click', function (e) {
+    e.stopPropagation();
+    var pop = $('rangePop');
+    if (pop.hidden) openRangePop(); else pop.hidden = true;
+  });
+  $('rangeApply').addEventListener('click', applyRange);
+  /* крестик — выход из ручного режима: переиспользуем клик по чипу текущего
+     окна (он сам сбрасывает manual и пересчитывает серию); если ручной режим
+     ещё не применён — просто закрываем поповер */
+  $('rangeClear').addEventListener('click', function () {
+    if (state.manual) {
+      var chip = document.querySelector('#winSeg button[data-days="' + state.windowDays + '"]');
+      if (chip) { chip.click(); return; }
+      state.manual = null; syncRangeUI(); loadSeries(); return;
+    }
+    $('rangePop').hidden = true;
+  });
+  $('rangePop').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); applyRange(); }
+  });
+  /* клик мимо поповера закрывает его; Esc — тоже (без снятия самого режима) */
+  document.addEventListener('click', function (e) {
+    var pop = $('rangePop');
+    if (pop && !pop.hidden && !pop.contains(e.target) && e.target.id !== 'rangeBtn' && !$('rangeBtn').contains(e.target)) pop.hidden = true;
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { var pop = $('rangePop'); if (pop && !pop.hidden) pop.hidden = true; }
   });
   /* окно анализа выбирается только пресетами-чипами (режим ползунка убран) */
   var horizonTimer = null;

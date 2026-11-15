@@ -1,4 +1,8 @@
 /* ===== FX Forecast Terminal — dark intelligence aesthetic ===== */
+/* глобальная страховка: author-стили display перебивают UA-стиль [hidden] —
+   уже дважды ловили (.pin-badge, #fcPanel) — фиксируем один раз на всех */
+[hidden]{display:none!important}
+
 :root{
   --bg:#050810;
   --panel:#0c1220;
@@ -116,6 +120,11 @@ button,select,input{cursor:pointer;font-family:var(--mono)}
 }
 .col{background:var(--bg);padding:18px 16px;min-width:0}
 .col-center{padding:18px 20px}
+/* средняя ширина (1181–1400): правая колонка — flex-стопка; «Итоги периода»
+   тянутся на всю высоту колонки (как панель прогноза с её длинной таблицей),
+   иначе под короткой панелью остаётся пустая зона до низа экрана */
+.col-right{display:flex;flex-direction:column}
+.col-right > .range-panel{flex:1}
 
 .panel{
   background:var(--panel);
@@ -308,8 +317,30 @@ tr:last-child td{border-bottom:none}
 .ctrl-pair{flex:0 0 auto;width:340px}
 .ctrl-src{flex:0 0 auto}
 .ctrl-src select{min-width:96px}
-.ctrl-win{flex:1;min-width:0}
-.ctrl-win .seg{display:grid;grid-template-columns:repeat(6,1fr)}
+.ctrl-win{flex:1;min-width:0;position:relative;display:flex;flex-wrap:wrap;align-items:flex-end;gap:0 8px}
+.ctrl-win .win-head{flex-basis:100%}
+.ctrl-win .seg{display:grid;grid-template-columns:repeat(6,1fr);flex:1;min-width:0}
+/* ручной диапазон: кнопка-календарь после чипов окна */
+.cal-btn{display:inline-grid;place-items:center;width:38px;height:38px;flex:none;background:var(--panel);border:1px solid var(--border);border-radius:2px;color:var(--text-2);cursor:pointer;transition:all .15s ease}
+.cal-btn svg{width:16px;height:16px;display:block}
+.cal-btn:hover{color:var(--text);border-color:currentColor}
+.cal-btn.on{color:var(--amber);border-color:var(--amber);background:rgba(251,191,36,.08)}
+/* поповер «с / по» под кнопкой */
+.range-pop{position:absolute;top:calc(100% + 8px);right:0;z-index:40;display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--panel);border:1px solid rgba(251,191,36,.55);border-radius:2px;box-shadow:0 10px 28px rgba(0,0,0,.55)}
+.range-pop[hidden]{display:none}
+.range-pop label{display:flex;align-items:center;gap:6px;margin:0;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-2)}
+.range-pop input[type="date"]{background:var(--bg);border:1px solid var(--border);border-radius:2px;color:var(--text);font:inherit;font-size:11px;padding:5px 7px;width:122px;height:30px;box-sizing:border-box;color-scheme:dark}
+.range-pop input[type="date"]:focus{outline:none;border-color:var(--amber)}
+/* квадратные икон-кнопки одной высоты с инпутами — без смещения по вертикали */
+.range-pop #rangeApply,.range-pop #rangeClear{width:30px;height:30px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;border-radius:2px;font:inherit;cursor:pointer;transition:all .15s ease}
+.range-pop #rangeApply svg,.range-pop #rangeClear svg{width:13px;height:13px}
+.range-pop #rangeApply{background:var(--amber);border:1px solid var(--amber);color:#2b1d02}
+.range-pop #rangeApply:hover{filter:brightness(1.12)}
+.range-pop #rangeClear{background:transparent;border:1px solid var(--border);color:var(--text-2)}
+.range-pop #rangeClear:hover{border-color:var(--red);color:var(--red)}
+/* ручной диапазон: подсветка периода под графиком и скрытие пунктов легенды прогноза */
+.chart-period .rng{color:var(--amber)}
+.legend.no-fc .fc-item{display:none}
 /* единая высота контролов панели: селекты, своп, чипы окон */
 .ctrlbar select,.ctrlbar .swap,.ctrl-win .seg button{height:38px;padding-top:0;padding-bottom:0}
 .ctrlbar .seg button{display:flex;align-items:center;justify-content:center}
@@ -379,6 +410,12 @@ tr:last-child td{border-bottom:none}
   .col-right > .panel:first-child{grid-column:2 / span 2;grid-row:1;min-height:0;display:flex;flex-direction:column;
     margin:14px 14px 0 0}                                                                                 /* прогноз: на всю ширину правой части */
   .col-right > .panel:first-child .fc-scroll{flex:1;min-height:60px;max-height:none}
+  /* «Итоги периода» занимают слот панели прогноза (она в этот момент скрыта):
+     :first-child ей не достаётся — fcPanel остаётся первым ребёнком даже скрытой,
+     поэтому слот задаём явно. Растягиваем на всю строку, как прогноз: иначе
+     между панелью и нижним рядом образуется провал больше стандартного gap */
+  .col-right > .range-panel{grid-column:2 / span 2;grid-row:1;
+    min-height:0;margin:14px 14px 0 0;display:flex;flex-direction:column}
   .col-right > .avg-panel{grid-column:2;grid-row:2;min-height:0;max-height:420px;
     margin:0 0 14px 0}                                                                                    /* средние: низ второй колонки, длинный список — внутренний скролл */
   .col-right > .panel:last-child{grid-column:3;grid-row:2;min-height:0;max-height:420px;overflow-y:auto;
@@ -587,6 +624,9 @@ tr:last-child td{border-bottom:none}
   /* прогноз — длинный: занимает обе строки левой колонки, средние и тренд
      делят правую — иначе под средними образуется пустая зона */
   .col-right > .panel:first-child{grid-row:1 / span 2}
+  /* скрытый прогноз слот не отпускает (остаётся :first-child) — «Итогам» тот же
+     спан явно, иначе рядом с «Долгосрочным трендом» пустая ячейка */
+  .col-right > .range-panel{grid-row:1 / span 2}
 }
 @media (min-width:861px) and (max-width:1180px){
   /* вторая строка тянется: тренд достраивается до низа прогноза,
