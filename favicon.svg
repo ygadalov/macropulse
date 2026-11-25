@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <clipPath id="rounded"><rect x="1" y="1" width="62" height="62" rx="12"/></clipPath>
+  </defs>
+  <rect x="1" y="1" width="62" height="62" rx="12" fill="#0c1220" stroke="#263246" stroke-width="1.2"/>
+  <g clip-path="url(#rounded)">
+    <path d="M2 32H23L28 21L35 44L40 25L44 32H62" fill="none" stroke="#22d3ee" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>
