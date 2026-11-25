@@ -6,7 +6,7 @@
 <title>MacroPulse — FX Forecast Terminal</title>
 <meta name="description" content="MacroPulse · FX Forecast Terminal — официальные курсы ЦБ РФ, прогноз и долгосрочный тренд. Работает локально без серверов.">
 <link rel="stylesheet" href="./src/fonts.css">
-<link rel="stylesheet" href="./src/styles.css?v=20261117a">
+<link rel="stylesheet" href="./src/styles.css?v=20261126a">
 <script src="./src/vendor/chart.umd.min.js"></script>
 </head>
 <body>
@@ -291,6 +291,14 @@
 
   <div class="drawer-sec">Общие</div>
   <div class="field">
+    <label id="tickerLabel">Лента показателей <button class="info-btn" aria-label="Пояснение к ленте показателей" aria-expanded="false">i<span class="info-tip" role="tooltip">Бегущая — лента котировок движется, как сейчас. Статичная — те же показатели без движения, листаются вручную (свайп или колесо мыши). Скрыта — лента убирается совсем, высота отдаётся графику. Выбор запоминается и действует во всех разделах (FX, ZC, KR, CPI).</span></button></label>
+    <div class="seg" role="group" aria-labelledby="tickerLabel" id="tickerSeg" style="grid-template-columns:repeat(3,1fr)">
+      <button data-ticker="marquee" aria-pressed="true">БЕГУЩАЯ</button>
+      <button data-ticker="static">СТАТИЧНАЯ</button>
+      <button data-ticker="hidden">СКРЫТА</button>
+    </div>
+  </div>
+  <div class="field">
     <label>Локальная база <button class="info-btn" id="dbNoteBtn" aria-label="Как это работает" aria-expanded="false">i<span class="info-tip" role="tooltip" id="dbNote">Новые курсы догружаются с зеркала ЦБ РФ при открытии и копятся в браузере. «Сохранить базу» записывает их в файл <b>fx-history.js</b>: в локальной копии — перезаписывает файл рядом с приложением (в Chrome/Edge напрямую, в остальных браузерах — через скачивание, замените старый файл скачанным). Онлайн-версия обновляет базу сама раз в сутки — там кнопка не требуется. База НБ РК (kzt-history.js) из браузера не догружается: у API Нацбанка Казахстана закрыт CORS, обновление — только ежедневным GitHub Action.</span></button></label>
     <div class="db-row"><span class="db-info" id="dbInfo">—</span><span class="db-badge" id="dbBadge">—</span></div>
     <button class="db-save" id="dbSave" disabled>Сохранить базу</button>
@@ -385,6 +393,6 @@
 
 <script src="./fx-history.js"></script>
 <script src="./kzt-history.js"></script>
-<script src="./src/main.js?v=20261117a"></script></script>
+<script src="./src/main.js?v=20261126a"></script></script>
 </body>
 </html>

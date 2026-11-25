@@ -98,6 +98,15 @@ button,select,input{cursor:pointer;font-family:var(--mono)}
   padding:7px 0;
 }
 .ticker:hover .ticker-track{animation-play-state:paused}
+/* режимы ленты (Настройки → Общие): статичная — без анимации, ручная
+   прокрутка свайпом/колесом/драгом мышью (полоса скрыта), контент без
+   дубля; скрытая — лента убрана, syncHdrH обнуляет --tkh и высота
+   уходит в рабочую область */
+.ticker[data-mode="static"]{overflow-x:auto;scrollbar-width:none;cursor:grab}
+.ticker[data-mode="static"]::-webkit-scrollbar{display:none}
+.ticker[data-mode="static"] .ticker-track{animation:none}
+.ticker[data-mode="static"].dragging{cursor:grabbing;user-select:none}
+.ticker[data-mode="hidden"]{display:none}
 @keyframes tick{to{transform:translateX(-50%)}}
 .tk{
   display:inline-flex;align-items:baseline;gap:8px;

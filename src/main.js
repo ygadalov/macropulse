@@ -127,8 +127,10 @@
     return '<span class="tk"><b>' + label + '</b><span class="v">' + fmt(val) + '</span>' +
       '<span class="' + cls + '">' + arrow + ' ' + Math.abs(chg * 100).toFixed(2).replace('.', ',') + '%</span></span>';
   }
+  var lastTickerSnap = null; /* последний снимок для перерисовки ленты при смене режима */
   function loadTicker(snap) {
     if (SEC !== 'fx') return; /* тикер контекстный: чужой раздел — не трогаем */
+    lastTickerSnap = snap;
     var cfg = TICKER_CFG[state.src] || TICKER_CFG.cbr;
     var html = '';
     cfg.majors.forEach(function (cc) {
@@ -142,7 +144,7 @@
       if (v1 && v2) html += tkChip(pair[0] + '/' + pair[1], v1 / v2, (p1 && p2) ? (v1 / v2) / (p1 / p2) - 1 : 0);
     });
     $('tickerTrack').innerHTML = html
-      ? html + html /* дублируем для бесшовной прокрутки */
+      ? (settings.ticker === 'static' ? html : html + html) /* дубль — только для бесшовной бегущей */
       : '<span class="tk"><b>ЛЕНТА НЕДОСТУПНА</b></span>';
   }
 
@@ -171,7 +173,7 @@
         tkFact('Цель ЦБ', '4,0%') + tkFact('Отклонение', '—');
       html += '<span class="tk-hint">Инфляция появится вместе с разделом</span>';
     }
-    $('tickerTrack').innerHTML = html ? html + html : '';
+    $('tickerTrack').innerHTML = html ? (settings.ticker === 'static' ? html : html + html) : '';
   }
 
   function setSection(sec) {
@@ -1678,7 +1680,7 @@
   $('horizon').style.setProperty('--fill', ((14 - 3) / 57 * 100) + '%');
 
   /* ---------- настройки (выдвижная панель) ---------- */
-  var settings = { autoMin: 0, modelMode: 'auto', holt: { alpha: 0.6, beta: 0.1, phi: 0.95 }, winDays: 180, ma: { 20: false, 50: false, 200: false }, src: 'cbr' };
+  var settings = { autoMin: 0, modelMode: 'auto', holt: { alpha: 0.6, beta: 0.1, phi: 0.95 }, winDays: 180, ma: { 20: false, 50: false, 200: false }, src: 'cbr', ticker: 'marquee' };
   var lastSeriesEnd = null; /* последняя дата установки в загруженном ряде */
   var autoTimer = null;
 
@@ -1700,6 +1702,7 @@
         });
       }
       if (s.src === 'nbk') settings.src = 'nbk';
+      if (s.ticker === 'marquee' || s.ticker === 'static' || s.ticker === 'hidden') settings.ticker = s.ticker;
     } catch (e) { /* noop */ }
   }
   function settingsSave() {
@@ -1839,6 +1842,58 @@
   }
   window.addEventListener('resize', syncHdrH);
   window.addEventListener('orientationchange', syncHdrH);
+  /* ---------- лента показателей: бегущая / статичная / скрыта ---------- */
+  function syncTickerSeg() {
+    var seg = $('tickerSeg');
+    if (!seg) return;
+    seg.querySelectorAll('button').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.ticker === settings.ticker));
+    });
+  }
+  function applyTicker() {
+    var tk = document.querySelector('.ticker');
+    if (tk) {
+      tk.dataset.mode = settings.ticker; /* CSS: static — без анимации + ручной скролл; hidden — display:none */
+      tk.scrollLeft = 0;
+    }
+    syncHdrH(); /* скрытая лента: offsetHeight = 0 → ~34px уходит в рабочую область (1fr) */
+  }
+  $('tickerSeg').addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    settings.ticker = btn.dataset.ticker;
+    settingsSave();
+    syncTickerSeg();
+    applyTicker();
+    /* перерисовать контент: в статичной дубль для бесшовной прокрутки не нужен */
+    if (SEC === 'fx') { if (lastTickerSnap) loadTicker(lastTickerSnap); }
+    else tickerStub(SEC);
+  });
+  /* статичная лента: драг мышью + колесо → горизонтальная прокрутка,
+     полоса скрыта CSS'ом; на тачах свайп нативный, сюда не попадает */
+  (function () {
+    var tk = document.querySelector('.ticker');
+    if (!tk) return;
+    var drag = null;
+    tk.addEventListener('pointerdown', function (e) {
+      if (settings.ticker !== 'static' || e.pointerType !== 'mouse') return;
+      drag = { x: e.clientX, sl: tk.scrollLeft };
+      tk.classList.add('dragging');
+      tk.setPointerCapture(e.pointerId);
+    });
+    tk.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      tk.scrollLeft = drag.sl - (e.clientX - drag.x);
+    });
+    function endDrag() { drag = null; tk.classList.remove('dragging'); }
+    tk.addEventListener('pointerup', endDrag);
+    tk.addEventListener('pointercancel', endDrag);
+    tk.addEventListener('wheel', function (e) {
+      if (settings.ticker !== 'static') return;
+      e.preventDefault();
+      tk.scrollLeft += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY);
+    }, { passive: false });
+  })();
   $('settingsBtn').addEventListener('click', openSettings);
   $('settingsClose').addEventListener('click', closeSettings);
   $('helpBtn').addEventListener('click', openHelp);
@@ -2084,6 +2139,8 @@
     syncHdrH();
     applyRail(railPref() || (window.innerWidth < 1180 ? 'mini' : 'full'), false);
     settingsLoad();
+    syncTickerSeg();
+    applyTicker();
     applyWindowFromSettings();
     applyMaToggles();
     syncAutoSeg();
